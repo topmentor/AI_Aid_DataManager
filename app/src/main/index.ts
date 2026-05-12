@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import { probeClaude } from "./services/claude-detector.js";
 import { getSettings, setSettings } from "./services/settings-service.js";
 import { listSources, addSource, updateSource, removeSource } from "./services/catalog-service.js";
+import { inspectSchema, testConnection } from "./services/schema-inspector.js";
 import type { AppSettings, DataSource } from "../shared/types.js";
 
 let win: BrowserWindow | null = null;
@@ -43,8 +44,19 @@ ipcMain.handle("catalog:list", listSources);
 ipcMain.handle("catalog:add", (_e, ds: Omit<DataSource, "id">) => addSource(ds));
 ipcMain.handle("catalog:update", (_e, ds: DataSource) => updateSource(ds));
 ipcMain.handle("catalog:remove", (_e, id: string) => removeSource(id));
-ipcMain.handle("catalog:testConnection", () => ({ ok: false, error: "Not yet implemented" }));
-ipcMain.handle("catalog:getSchema", () => { throw new Error("Not yet implemented"); });
+ipcMain.handle("catalog:testConnection", async (_e, id: string) => {
+  const sources = await listSources();
+  const ds = sources.find((s) => s.id === id);
+  if (!ds) return { ok: false, error: "Source not found" };
+  return testConnection(ds);
+});
+
+ipcMain.handle("catalog:getSchema", async (_e, id: string) => {
+  const sources = await listSources();
+  const ds = sources.find((s) => s.id === id);
+  if (!ds) throw new Error(`Source not found: ${id}`);
+  return inspectSchema(ds);
+});
 
 // Claude (stub — implemented in Task 3 + 8)
 ipcMain.handle("claude:probe", () =>
