@@ -1,12 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { app } from "electron";
 import { getSettings } from "./settings-service.js";
 import { listSources } from "./catalog-service.js";
 import { inspectSchema } from "./schema-inspector.js";
 import { buildDataHelpers } from "./python-runner.js";
 import { buildSystemPrompt } from "./system-prompt.js";
-import type { Job, JobStatus, DataSourceSchema } from "../../shared/types.js";
+import type { Job, DataSourceSchema } from "../../shared/types.js";
 
 // In-memory job cache (also persisted to jobs.json)
 let jobCache: Job[] = [];
