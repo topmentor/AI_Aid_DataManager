@@ -10,6 +10,9 @@ import type { AppSettings, DataSource } from "../shared/types.js";
 import { loadJobs, createJob } from "./services/job-service.js";
 import { sendMessage as claudeSendMessage, abortJob } from "./services/claude-service.js";
 
+// Suppress harmless "Request Autofill.enable failed" DevTools Protocol noise
+app.commandLine.appendSwitch("disable-features", "AutofillServerCommunication");
+
 let win: BrowserWindow | null = null;
 
 function createWindow() {
