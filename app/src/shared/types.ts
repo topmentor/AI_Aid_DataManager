@@ -1,6 +1,4 @@
 // 데이터 소스 종류
-export type DataSourceType = "mariadb" | "csv" | "json";
-
 export interface MariaDbConfig {
   host: string; port: number; database: string;
   user: string; password: string;
@@ -8,12 +6,17 @@ export interface MariaDbConfig {
 export interface CsvConfig { filePath: string; delimiter?: string; }
 export interface JsonConfig { filePath: string; rootPath?: string; }
 
-export interface DataSource {
+interface DataSourceBase {
   id: string;
   name: string;
-  type: DataSourceType;
-  config: MariaDbConfig | CsvConfig | JsonConfig;
 }
+
+export type DataSource =
+  | (DataSourceBase & { type: "mariadb"; config: MariaDbConfig })
+  | (DataSourceBase & { type: "csv"; config: CsvConfig })
+  | (DataSourceBase & { type: "json"; config: JsonConfig });
+
+export type DataSourceType = DataSource["type"];
 
 export interface ColumnSchema {
   name: string;
@@ -63,7 +66,7 @@ export type ClaudeStreamEvent =
   | { type: "assistant"; text: string }
   | { type: "tool_use"; name: string; input: unknown }
   | { type: "tool_result"; content: string }
-  | { type: "result"; sessionId: string }
+  | { type: "result"; sessionId: string; subtype: string; resultText: string }
   | { type: "error"; message: string };
 
 export interface AppSettings {

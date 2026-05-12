@@ -60,4 +60,14 @@ ipcMain.handle("jobs:create", () => { throw new Error("Not yet implemented"); })
 
 // Files
 ipcMain.handle("files:open", (_e, fp: string) => shell.openPath(fp));
-ipcMain.handle("files:readText", (_e, fp: string) => fs.readFile(fp, "utf-8"));
+ipcMain.handle("files:readText", async (_e, fp: string) => {
+  const resolved = path.resolve(fp);
+  const userDataPath = path.resolve(app.getPath("userData"));
+  const tempPath = path.resolve(app.getPath("temp"));
+  const allowed = [userDataPath, tempPath];
+  const isAllowed = allowed.some(dir => resolved.startsWith(dir + path.sep) || resolved === dir);
+  if (!isAllowed) {
+    throw new Error("Access denied: path outside allowed directories");
+  }
+  return fs.readFile(resolved, "utf-8");
+});

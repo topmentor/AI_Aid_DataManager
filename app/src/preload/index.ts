@@ -1,5 +1,19 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+const ALLOWED_PUSH_CHANNELS = [
+  "claude:stream",
+  "job:update",
+  "job:analyze_code",
+] as const;
+
+// Map<channel, Map<originalFn, wrapperFn>>
+const wrapperRegistry = new Map<string, Map<Function, Function>>();
+
+function getOrCreateChannelMap(channel: string): Map<Function, Function> {
+  if (!wrapperRegistry.has(channel)) wrapperRegistry.set(channel, new Map());
+  return wrapperRegistry.get(channel)!;
+}
+
 contextBridge.exposeInMainWorld("aidclaude", {
   // Settings
   settings: {
@@ -33,11 +47,20 @@ contextBridge.exposeInMainWorld("aidclaude", {
     open: (fp: string) => ipcRenderer.invoke("files:open", fp),
     readText: (fp: string) => ipcRenderer.invoke("files:readText", fp),
   },
-  // Events (main → renderer push)
+  // Events (main → renderer push) — allowlisted channels only, with leak-free wrapper registry
   on: (channel: string, fn: (...args: unknown[]) => void) => {
-    ipcRenderer.on(channel, (_e, ...args) => fn(...args));
+    if (!(ALLOWED_PUSH_CHANNELS as readonly string[]).includes(channel)) return;
+    const wrapper = (_e: unknown, ...args: unknown[]) => fn(...args);
+    getOrCreateChannelMap(channel).set(fn, wrapper);
+    ipcRenderer.on(channel, wrapper as Parameters<typeof ipcRenderer.on>[1]);
   },
   off: (channel: string, fn: (...args: unknown[]) => void) => {
-    ipcRenderer.removeListener(channel, fn);
+    if (!(ALLOWED_PUSH_CHANNELS as readonly string[]).includes(channel)) return;
+    const channelMap = wrapperRegistry.get(channel);
+    const wrapper = channelMap?.get(fn);
+    if (wrapper) {
+      ipcRenderer.removeListener(channel, wrapper as Parameters<typeof ipcRenderer.removeListener>[1]);
+      channelMap!.delete(fn);
+    }
   },
 });
