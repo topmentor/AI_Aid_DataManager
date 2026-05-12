@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { DataSource, OutputFile, MariaDbConfig, CsvConfig, JsonConfig } from "../../shared/types.js";
+import type { DataSource, OutputFile, MariaDbConfig, CsvConfig, JsonConfig, JsonlConfig } from "../../shared/types.js";
 
 export function buildDataHelpers(sources: DataSource[]): string {
   const lines: string[] = [
@@ -54,6 +54,15 @@ export function buildDataHelpers(sources: DataSource[]): string {
         `    """Load JSON file: ${ds.name}"""`,
         `    data = json.loads(pathlib.Path(${JSON.stringify(cfg.filePath)}).read_text(encoding="utf-8"))${rootNav}`,
         `    return data`,
+        ``,
+      );
+    } else if (ds.type === "jsonl") {
+      const cfg = ds.config as JsonlConfig;
+      lines.push(
+        `def load_jsonl_${safeName}() -> pd.DataFrame:`,
+        `    """Load JSONL file: ${ds.name} (one JSON object per line)"""`,
+        `    _lines = pathlib.Path(${JSON.stringify(cfg.filePath)}).read_text(encoding="utf-8").splitlines()`,
+        `    return pd.DataFrame([json.loads(l) for l in _lines if l.strip()])`,
         ``,
       );
     }

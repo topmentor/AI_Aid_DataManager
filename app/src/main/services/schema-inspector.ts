@@ -119,11 +119,31 @@ async function inspectJson(ds: DataSource & { type: "json" }): Promise<DataSourc
   };
 }
 
+async function inspectJsonl(ds: DataSource & { type: "jsonl" }): Promise<DataSourceSchema> {
+  const cfg = ds.config;
+  const raw = await fs.readFile(cfg.filePath, "utf-8");
+  const lines = raw.trim().split("\n").filter(Boolean).slice(0, 5);
+  if (lines.length === 0) {
+    return { sourceId: ds.id, sourceName: ds.name, type: "jsonl" };
+  }
+  const first = JSON.parse(lines[0]);
+  const columns: ColumnSchema[] | undefined =
+    typeof first === "object" && first !== null
+      ? Object.keys(first as Record<string, unknown>).map((name) => ({
+          name,
+          type: typeof (first as Record<string, unknown>)[name],
+          sample: String((first as Record<string, unknown>)[name] ?? ""),
+        }))
+      : undefined;
+  return { sourceId: ds.id, sourceName: ds.name, type: "jsonl", columns };
+}
+
 export async function inspectSchema(ds: DataSource): Promise<DataSourceSchema> {
   switch (ds.type) {
     case "mariadb": return inspectMariaDb(ds);
     case "csv":     return inspectCsv(ds);
     case "json":    return inspectJson(ds);
+    case "jsonl":   return inspectJsonl(ds);
   }
 }
 

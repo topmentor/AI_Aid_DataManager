@@ -32,6 +32,12 @@ export function buildSystemPrompt(schemas: DataSourceSchema[]): string {
           : "";
         return `### ${s.sourceName} (JSON)\n${colStr}${s.structure ? `\nStructure sample:\n${s.structure}` : ""}`;
       }
+      if (s.type === "jsonl") {
+        const colStr = s.columns
+          ? s.columns.map((c) => `  - ${c.name} (${c.type}, example: ${c.sample ?? ""})`).join("\n")
+          : "";
+        return `### ${s.sourceName} (JSONL — one JSON object per line)\n${colStr}`;
+      }
       return "";
     })
     .filter(Boolean)
@@ -69,10 +75,11 @@ ${catalogText || "(No data sources configured)"}
 ## data_helpers.py usage
 
 \`\`\`python
-from data_helpers import load_csv_<source_name>, load_mariadb_<source_name>, load_json_<source_name>
+from data_helpers import load_csv_<name>, load_mariadb_<name>, load_json_<name>, load_jsonl_<name>
 # MariaDB: df = load_mariadb_<name>("SELECT col1, col2 FROM table LIMIT 1000")
 # CSV:     df = load_csv_<name>()
 # JSON:    data = load_json_<name>()
+# JSONL:   df = load_jsonl_<name>()   # returns a DataFrame (one row per line)
 \`\`\`
 
 Write your analysis code to \`analyze.py\`. First understand the schema, then write clean, focused analysis code.`;

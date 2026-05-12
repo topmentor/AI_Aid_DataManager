@@ -5,6 +5,7 @@ export interface MariaDbConfig {
 }
 export interface CsvConfig { filePath: string; delimiter?: string; }
 export interface JsonConfig { filePath: string; rootPath?: string; }
+export interface JsonlConfig { filePath: string; }
 
 interface DataSourceBase {
   id: string;
@@ -14,7 +15,8 @@ interface DataSourceBase {
 export type DataSource =
   | (DataSourceBase & { type: "mariadb"; config: MariaDbConfig })
   | (DataSourceBase & { type: "csv"; config: CsvConfig })
-  | (DataSourceBase & { type: "json"; config: JsonConfig });
+  | (DataSourceBase & { type: "json"; config: JsonConfig })
+  | (DataSourceBase & { type: "jsonl"; config: JsonlConfig });
 
 export type DataSourceType = DataSource["type"];
 
@@ -30,7 +32,7 @@ export interface DataSourceSchema {
   sourceName: string;
   type: DataSourceType;
   tables?: TableSchema[];      // mariadb
-  columns?: ColumnSchema[];    // csv / json (flat)
+  columns?: ColumnSchema[];    // csv / json / jsonl (flat)
   structure?: string;          // json (nested description)
 }
 

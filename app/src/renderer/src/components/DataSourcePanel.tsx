@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
-import type { DataSource, DataSourceType, MariaDbConfig, CsvConfig, JsonConfig, DataSourceSchema } from "../../../shared/types";
+import type { DataSource, DataSourceType, MariaDbConfig, CsvConfig, JsonConfig, JsonlConfig, DataSourceSchema } from "../../../shared/types";
 
-type FormConfig = Partial<MariaDbConfig & CsvConfig & JsonConfig>;
+type FormConfig = Partial<MariaDbConfig & CsvConfig & JsonConfig & JsonlConfig>;
 
 interface AddForm {
   name: string;
@@ -31,8 +31,6 @@ export function DataSourcePanel() {
     const config: FormConfig =
       type === "mariadb"
         ? { host: "localhost", port: 3306, database: "", user: "", password: "" }
-        : type === "csv"
-        ? { filePath: "" }
         : { filePath: "" };
     setForm({ ...DEFAULT_FORM, type, config });
   }
@@ -42,7 +40,7 @@ export function DataSourcePanel() {
     const ds = await window.aidclaude.catalog.add({
       name: form.name.trim(),
       type: form.type,
-      config: form.config as MariaDbConfig | CsvConfig | JsonConfig,
+      config: form.config as MariaDbConfig | CsvConfig | JsonConfig | JsonlConfig,
     });
     setSources([...sources, ds]);
     setForm(DEFAULT_FORM);
@@ -94,7 +92,7 @@ export function DataSourcePanel() {
         </div>
       );
     }
-    if ((schema.type === "csv" || schema.type === "json") && schema.columns) {
+    if ((schema.type === "csv" || schema.type === "json" || schema.type === "jsonl") && schema.columns) {
       return (
         <div style={{ marginTop: 8, fontSize: 11 }}>
           {schema.columns.map((c) => (
@@ -153,6 +151,7 @@ export function DataSourcePanel() {
               <option value="mariadb">MariaDB</option>
               <option value="csv">CSV 파일</option>
               <option value="json">JSON 파일</option>
+              <option value="jsonl">JSONL 파일</option>
             </select>
           </div>
 
@@ -177,15 +176,19 @@ export function DataSourcePanel() {
             </>
           )}
 
-          {/* CSV/JSON fields */}
-          {(form.type === "csv" || form.type === "json") && (
+          {/* File-based source fields (CSV / JSON / JSONL) */}
+          {(form.type === "csv" || form.type === "json" || form.type === "jsonl") && (
             <>
               <div style={{ marginBottom: 5 }}>
                 <label style={{ display: "block", color: "#888", marginBottom: 2, fontSize: 11 }}>파일 경로</label>
                 <input
                   value={(form.config as CsvConfig).filePath ?? ""}
                   onChange={(e) => updateFormConfig({ filePath: e.target.value })}
-                  placeholder="C:\data\file.csv"
+                  placeholder={
+                    form.type === "csv" ? "C:\\data\\file.csv"
+                    : form.type === "jsonl" ? "C:\\data\\file.jsonl"
+                    : "C:\\data\\file.json"
+                  }
                   style={{ width: "100%" }}
                 />
               </div>
