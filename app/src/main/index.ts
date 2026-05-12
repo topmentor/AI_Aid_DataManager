@@ -6,6 +6,7 @@ import { getSettings, setSettings } from "./services/settings-service.js";
 import { listSources, addSource, updateSource, removeSource } from "./services/catalog-service.js";
 import { inspectSchema, testConnection } from "./services/schema-inspector.js";
 import type { AppSettings, DataSource } from "../shared/types.js";
+import { loadJobs, createJob } from "./services/job-service.js";
 
 let win: BrowserWindow | null = null;
 
@@ -65,9 +66,12 @@ ipcMain.handle("claude:probe", () =>
 ipcMain.handle("claude:sendMessage", () => {});
 ipcMain.handle("claude:abort", () => {});
 
-// Jobs (stub — implemented in Task 7)
-ipcMain.handle("jobs:list", () => []);
-ipcMain.handle("jobs:create", () => { throw new Error("Not yet implemented"); });
+// Jobs (Task 7)
+ipcMain.handle("jobs:list", loadJobs);
+ipcMain.handle("jobs:create", async (_e, userRequest: string, sourceIds: string[]) => {
+  const { job } = await createJob(userRequest, sourceIds);
+  return job;
+});
 
 // Files
 ipcMain.handle("files:open", (_e, fp: string) => shell.openPath(fp));
