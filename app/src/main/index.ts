@@ -2,6 +2,9 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { probeClaude } from "./services/claude-detector.js";
+import { getSettings, setSettings } from "./services/settings-service.js";
+import { listSources, addSource, updateSource, removeSource } from "./services/catalog-service.js";
+import type { AppSettings, DataSource } from "../shared/types.js";
 
 let win: BrowserWindow | null = null;
 
@@ -31,19 +34,15 @@ app.on("window-all-closed", () => {
 
 // ── IPC handlers (stubs — full implementations added in later tasks) ──
 
-// Settings (stub — implemented in Task 4)
-ipcMain.handle("settings:get", () => ({
-  claudeBin: "claude",
-  pythonBin: "python",
-  workspaceRoot: path.join(app.getPath("userData"), "workspace"),
-}));
-ipcMain.handle("settings:set", () => {});
+// Settings — real implementations (Task 4)
+ipcMain.handle("settings:get", getSettings);
+ipcMain.handle("settings:set", (_e, s: Partial<AppSettings>) => setSettings(s));
 
-// Catalog (stub — implemented in Task 4)
-ipcMain.handle("catalog:list", () => []);
-ipcMain.handle("catalog:add", () => { throw new Error("Not yet implemented"); });
-ipcMain.handle("catalog:update", () => { throw new Error("Not yet implemented"); });
-ipcMain.handle("catalog:remove", () => { throw new Error("Not yet implemented"); });
+// Catalog — real implementations (Task 4)
+ipcMain.handle("catalog:list", listSources);
+ipcMain.handle("catalog:add", (_e, ds: Omit<DataSource, "id">) => addSource(ds));
+ipcMain.handle("catalog:update", (_e, ds: DataSource) => updateSource(ds));
+ipcMain.handle("catalog:remove", (_e, id: string) => removeSource(id));
 ipcMain.handle("catalog:testConnection", () => ({ ok: false, error: "Not yet implemented" }));
 ipcMain.handle("catalog:getSchema", () => { throw new Error("Not yet implemented"); });
 
