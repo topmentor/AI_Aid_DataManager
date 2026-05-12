@@ -1,0 +1,11 @@
+timestamp,module,level,message
+2026-05-01 10:00:00,auth,ERROR,Login failed
+2026-05-01 10:01:00,auth,WARN,Slow response
+2026-05-01 10:02:00,api,ERROR,Timeout
+2026-05-01 10:03:00,api,ERROR,Connection refused
+2026-05-01 10:04:00,auth,ERROR,Token expired
+2026-05-01 10:05:00,db,ERROR,Query timeout
+2026-05-01 10:06:00,db,WARN,Slow query
+2026-05-01 10:07:00,api,INFO,Request processed
+2026-05-01 10:08:00,auth,INFO,Login successful
+2026-05-01 10:09:00,db,ERROR,Connection pool exhausted
