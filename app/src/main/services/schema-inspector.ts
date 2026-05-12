@@ -6,13 +6,10 @@ import type {
   DataSourceSchema,
   ColumnSchema,
   TableSchema,
-  MariaDbConfig,
-  CsvConfig,
-  JsonConfig,
 } from "../../shared/types.js";
 
 async function inspectMariaDb(ds: DataSource & { type: "mariadb" }): Promise<DataSourceSchema> {
-  const cfg = ds.config as MariaDbConfig;
+  const cfg = ds.config;
   const conn = await mysql.createConnection({
     host: cfg.host,
     port: cfg.port,
@@ -58,13 +55,14 @@ async function inspectMariaDb(ds: DataSource & { type: "mariadb" }): Promise<Dat
 }
 
 async function inspectCsv(ds: DataSource & { type: "csv" }): Promise<DataSourceSchema> {
-  const cfg = ds.config as CsvConfig;
+  const cfg = ds.config;
   const raw = await fs.readFile(cfg.filePath, "utf-8");
 
   const { data, meta } = Papa.parse<Record<string, string>>(raw, {
     header: true,
     preview: 5,
     skipEmptyLines: true,
+    delimiter: cfg.delimiter,  // "" means auto-detect (PapaParse default)
   });
 
   const sample = data as Record<string, string>[];
@@ -83,7 +81,7 @@ async function inspectCsv(ds: DataSource & { type: "csv" }): Promise<DataSourceS
 }
 
 async function inspectJson(ds: DataSource & { type: "json" }): Promise<DataSourceSchema> {
-  const cfg = ds.config as JsonConfig;
+  const cfg = ds.config;
   const raw = await fs.readFile(cfg.filePath, "utf-8");
   let parsed: unknown = JSON.parse(raw);
 
@@ -92,19 +90,23 @@ async function inspectJson(ds: DataSource & { type: "json" }): Promise<DataSourc
     for (const key of cfg.rootPath.split(".")) {
       parsed = (parsed as Record<string, unknown>)[key];
     }
+    if (parsed === undefined || parsed === null) {
+      throw new Error(`rootPath "${cfg.rootPath}" not found in JSON`);
+    }
   }
 
   // Get structure sample (first item if array, whole object if not)
   const sample = Array.isArray(parsed) ? parsed[0] : parsed;
-  const structure = JSON.stringify(sample, null, 2).slice(0, 800);
+  const structure = JSON.stringify(sample ?? null, null, 2).slice(0, 800);
 
   // If the root is an array of objects, extract flat column names
   let columns: ColumnSchema[] | undefined;
   if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null) {
-    columns = Object.keys(parsed[0] as object).map((name) => ({
+    const first = parsed[0] as Record<string, unknown>;
+    columns = Object.keys(first).map((name) => ({
       name,
-      type: typeof (parsed as Record<string, unknown>[])[0][name],
-      sample: String((parsed as Record<string, unknown>[])[0][name] ?? ""),
+      type: typeof first[name],
+      sample: String(first[name] ?? ""),
     }));
   }
 
