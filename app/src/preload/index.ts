@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 
 const ALLOWED_PUSH_CHANNELS = [
   "claude:stream",
+  "claude:done",
+  "claude:error",
   "job:update",
   "job:analyze_code",
 ] as const;

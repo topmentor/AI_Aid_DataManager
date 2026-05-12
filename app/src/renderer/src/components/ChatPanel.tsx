@@ -2,93 +2,48 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAppStore } from "../store/appStore";
-import type { ClaudeStreamEvent, Job } from "../../../shared/types";
+
+const MARKDOWN_COMPONENTS = {
+  a: ({ href, children, ...rest }: React.ComponentPropsWithoutRef<"a">) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" {...rest}>
+      {children}
+    </a>
+  ),
+};
 
 export function ChatPanel() {
   const {
-    sources, jobs, activeJobId, chatMessages,
-    addJob, setActiveJob, addChatMessage, updateJob,
+    sources,
+    jobs,
+    activeJobId,
+    chatMessages,
+    streaming,
+    addJob,
+    setActiveJob,
+    addChatMessage,
+    ensureAssistantMessage,
+    setStreaming,
     setActiveCode,
   } = useAppStore();
+
   const [input, setInput] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const messages = activeJobId ? chatMessages.get(activeJobId) ?? [] : [];
+  const messages = activeJobId ? (chatMessages.get(activeJobId) ?? []) : [];
 
   // Auto-scroll to bottom
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Listen to Claude streaming events
-  useEffect(() => {
-    const handleStream = (...args: unknown[]) => {
-      const payload = args[0] as { jobId: string; event: ClaudeStreamEvent };
-      if (payload.jobId !== activeJobId) return;
-      const { event } = payload;
-      if (event.type === "assistant" && event.text) {
-        // Append to last assistant message or create new one
-        const msgs = useAppStore.getState().chatMessages.get(payload.jobId) ?? [];
-        const last = msgs[msgs.length - 1];
-        if (last?.role === "assistant") {
-          // Update last message in place by replacing it
-          const updated = [...msgs.slice(0, -1), { ...last, text: last.text + event.text }];
-          // Direct store update via Zustand
-          useAppStore.setState((s) => {
-            const m = new Map(s.chatMessages);
-            m.set(payload.jobId, updated);
-            return { chatMessages: m };
-          });
-        } else {
-          addChatMessage(payload.jobId, {
-            role: "assistant",
-            text: event.text,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      } else if (event.type === "result" || event.type === "error") {
-        setIsRunning(false);
-        if (event.type === "error") {
-          addChatMessage(payload.jobId, {
-            role: "assistant",
-            text: `❌ 오류: ${event.message}`,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
-    };
-
-    const handleJobUpdate = (...args: unknown[]) => {
-      const job = args[0] as Job;
-      if (job.id === activeJobId) updateJob(job);
-    };
-
-    const handleAnalyzeCode = (...args: unknown[]) => {
-      const payload = args[0] as { jobId: string; code: string };
-      if (payload.jobId === activeJobId) setActiveCode(payload.code);
-    };
-
-    window.aidclaude.on("claude:stream", handleStream);
-    window.aidclaude.on("job:update", handleJobUpdate);
-    window.aidclaude.on("job:analyze_code", handleAnalyzeCode);
-
-    return () => {
-      window.aidclaude.off("claude:stream", handleStream);
-      window.aidclaude.off("job:update", handleJobUpdate);
-      window.aidclaude.off("job:analyze_code", handleAnalyzeCode);
-    };
-  }, [activeJobId]);
-
   async function handleSend() {
-    if (!input.trim() || isRunning) return;
+    if (!input.trim() || streaming) return;
     const text = input.trim();
     setInput("");
 
     let jobId = activeJobId;
     if (!jobId) {
-      // Create new job
       const job = await window.aidclaude.jobs.create(text, sources.map((s) => s.id));
       addJob(job);
       setActiveJob(job.id);
@@ -98,20 +53,19 @@ export function ChatPanel() {
     addChatMessage(jobId, {
       role: "user",
       text,
+      status: "done",
+      toolCalls: [],
       timestamp: new Date().toISOString(),
     });
 
-    setIsRunning(true);
-    try {
-      await window.aidclaude.claude.sendMessage(jobId, text);
-    } catch (e) {
-      setIsRunning(false);
-      addChatMessage(jobId, {
-        role: "assistant",
-        text: `❌ 오류: ${(e as Error).message}`,
-        timestamp: new Date().toISOString(),
-      });
-    }
+    const assistantId = crypto.randomUUID();
+    ensureAssistantMessage(assistantId);
+    setStreaming({ jobId, assistantMessageId: assistantId });
+
+    // Fire-and-forget — completion signaled by claude:done / claude:error
+    window.aidclaude.claude.sendMessage(jobId, text).catch(() => {
+      // Swallow IPC-level errors; claude:error event handles messaging to the user
+    });
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -121,50 +75,37 @@ export function ChatPanel() {
     }
   }
 
+  function handleAbort() {
+    if (activeJobId) window.aidclaude.claude.abort(activeJobId);
+  }
+
   function handleNewJob() {
     setActiveJob(null);
     setActiveCode("");
     setInput("");
-    setIsRunning(false);
   }
 
   // Job history tabs
   const recentJobs = [...jobs].reverse().slice(0, 10);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", borderBottom: "1px solid #333" }}>
+    <div className="chat-panel">
       {/* Job tabs */}
-      <div
-        style={{
-          display: "flex",
-          overflowX: "auto",
-          background: "#252525",
-          borderBottom: "1px solid #333",
-          minHeight: 32,
-          alignItems: "center",
-          padding: "0 6px",
-          gap: 4,
-        }}
-      >
+      <div className="chat-tabs">
         <button
+          type="button"
+          className={`chat-tab-btn${activeJobId === null ? " chat-tab-btn-active" : ""}`}
           onClick={handleNewJob}
-          style={{
-            fontSize: 11, padding: "2px 8px", whiteSpace: "nowrap",
-            background: activeJobId === null ? "#0e639c" : "#3c3c3c",
-          }}
         >
           + 새 작업
         </button>
         {recentJobs.map((j) => (
           <button
+            type="button"
             key={j.id}
+            className={`chat-tab-btn chat-tab-btn-job${j.id === activeJobId ? " chat-tab-btn-active" : ""}`}
             onClick={() => setActiveJob(j.id)}
             title={j.userRequest}
-            style={{
-              fontSize: 11, padding: "2px 8px", maxWidth: 120,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              background: j.id === activeJobId ? "#0e639c" : "#3c3c3c",
-            }}
           >
             {j.userRequest.slice(0, 20)}…
           </button>
@@ -172,78 +113,99 @@ export function ChatPanel() {
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+      <div className="cld-messages">
         {messages.length === 0 && (
-          <p style={{ color: "#555", fontSize: 12, textAlign: "center", marginTop: 20 }}>
-            분석 요청을 입력하세요
-          </p>
+          <p className="chat-empty-hint">분석 요청을 입력하세요</p>
         )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              marginBottom: 10,
-              display: "flex",
-              justifyContent: m.role === "user" ? "flex-end" : "flex-start",
-            }}
-          >
-            <div
-              style={{
-                maxWidth: "85%",
-                padding: "7px 12px",
-                borderRadius: m.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-                background: m.role === "user" ? "#0e639c" : "#2d2d2d",
-                fontSize: 13,
-                lineHeight: 1.5,
-              }}
-            >
-              {m.role === "assistant" ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
-              ) : (
-                m.text
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <article key={m.id} className="cld-msg cld-msg-user">
+              <div className="cld-bubble">
+                <div className="cld-msg-text">{m.text}</div>
+              </div>
+            </article>
+          ) : (
+            <article key={m.id} className={`cld-msg cld-msg-assistant cld-msg-${m.status}`}>
+              {(m.text || m.status === "streaming") && (
+                <div className="cld-turn">
+                  <span
+                    className={`cld-bullet ${
+                      m.status === "streaming"
+                        ? "cld-bullet-live"
+                        : m.status === "error"
+                        ? "cld-bullet-error"
+                        : "cld-bullet-done"
+                    }`}
+                  />
+                  <div className="cld-msg-text cld-md">
+                    {m.text ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                        {m.text}
+                      </ReactMarkdown>
+                    ) : (
+                      <span className="cld-thinking">응답 생성 중…</span>
+                    )}
+                  </div>
+                </div>
               )}
-            </div>
-          </div>
-        ))}
+              {m.toolCalls.length > 0 && (
+                <ul className="cld-tool-calls">
+                  {m.toolCalls.map((c) => (
+                    <li key={c.id} className={`cld-tool cld-tool-${c.status}`}>
+                      <span
+                        className={`cld-bullet ${
+                          c.status === "done" ? "cld-bullet-done" : "cld-bullet-live"
+                        }`}
+                      />
+                      <span className="cld-tool-name">{c.name}</span>
+                      <span className="cld-tool-summary">{c.summary}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {m.status === "error" && m.error && (
+                <div className="cld-msg-error">⚠ {m.error}</div>
+              )}
+            </article>
+          )
+        )}
         <div ref={endRef} />
       </div>
 
-      {/* Input area */}
-      <div
-        style={{
-          padding: "8px 10px",
-          borderTop: "1px solid #333",
-          display: "flex",
-          gap: 6,
-          background: "#252525",
-        }}
-      >
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="분석 요청 입력 (Enter: 전송, Shift+Enter: 줄바꿈)"
-          rows={3}
-          style={{ flex: 1, resize: "none", fontSize: 13, lineHeight: 1.4 }}
-          disabled={isRunning}
-        />
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <button
-            onClick={handleSend}
-            disabled={isRunning || !input.trim()}
-            style={{ flex: 1 }}
-          >
-            전송
-          </button>
-          {isRunning && (
-            <button
-              onClick={() => activeJobId && window.aidclaude.claude.abort(activeJobId)}
-              style={{ background: "#8b2525", flex: 1 }}
-            >
-              중단
-            </button>
-          )}
+      {/* Composer */}
+      <div className={`cld-composer ${streaming ? "cld-composer-streaming" : ""}`}>
+        <div className="cld-composer-frame">
+          <div className="cld-input-wrap">
+            <textarea
+              ref={textareaRef}
+              className="cld-composer-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                streaming ? "Claude가 응답 중입니다…" : "분석 요청을 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"
+              }
+              rows={3}
+              disabled={!!streaming}
+            />
+          </div>
+          <div className="cld-composer-actions">
+            <div className="cld-actions-spacer" />
+            {streaming ? (
+              <button type="button" className="cld-send-btn cld-send-stop" onClick={handleAbort}>
+                ■
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cld-send-btn"
+                onClick={handleSend}
+                disabled={!input.trim()}
+              >
+                ↑
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

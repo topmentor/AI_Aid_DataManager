@@ -79,6 +79,9 @@ export async function sendMessage(
       }
     }
 
+    // Notify renderer that the Claude turn is complete
+    win.webContents.send("claude:done", { jobId });
+
     // Turn complete — check for analyze.py and auto-run if present
     const analysisPath = path.join(job.workspaceDir, "analyze.py");
     try {
@@ -135,6 +138,7 @@ export async function sendMessage(
     }
     const msg = (err as Error).message;
     pushEvent(win, jobId, { type: "error", message: msg });
+    win.webContents.send("claude:error", { jobId, error: msg });
     await updateJob(jobId, { status: "error", errorMsg: msg });
   } finally {
     abortControllers.delete(jobId);
