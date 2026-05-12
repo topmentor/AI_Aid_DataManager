@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -103,4 +103,30 @@ ipcMain.handle("files:readBase64", async (_e, fp: string) => {
   }
   const buf = await fs.readFile(normalized);
   return buf.toString("base64");
+});
+
+// File picker dialog — returns selected file path or null if cancelled
+ipcMain.handle(
+  "dialog:openFile",
+  async (_e, filters: { name: string; extensions: string[] }[]) => {
+    if (!win) return null;
+    const result = await dialog.showOpenDialog(win, {
+      properties: ["openFile"],
+      filters: [...filters, { name: "모든 파일", extensions: ["*"] }],
+    });
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  }
+);
+
+// Copy a file into workspaceRoot/data/ and return the destination path
+ipcMain.handle("files:copyToData", async (_e, srcPath: string) => {
+  const { workspaceRoot } = await getSettings();
+  const dataDir = path.join(workspaceRoot, "data");
+  await fs.mkdir(dataDir, { recursive: true });
+  const ext = path.extname(srcPath);
+  const base = path.basename(srcPath, ext).replace(/[^a-zA-Z0-9_\-]/g, "_");
+  const destName = `${base}_${Date.now()}${ext}`;
+  const destPath = path.join(dataDir, destName);
+  await fs.copyFile(srcPath, destPath);
+  return destPath;
 });

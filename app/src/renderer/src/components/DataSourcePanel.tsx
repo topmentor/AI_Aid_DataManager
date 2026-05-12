@@ -35,6 +35,19 @@ export function DataSourcePanel() {
     setForm({ ...DEFAULT_FORM, type, config });
   }
 
+  async function handleSelectFile() {
+    const filters =
+      form.type === "csv"
+        ? [{ name: "CSV 파일", extensions: ["csv", "txt"] }]
+        : form.type === "jsonl"
+        ? [{ name: "JSONL 파일", extensions: ["jsonl", "ndjson"] }]
+        : [{ name: "JSON 파일", extensions: ["json"] }];
+    const srcPath = await window.aidclaude.dialog.openFile(filters);
+    if (!srcPath) return;
+    const destPath = await window.aidclaude.files.copyToData(srcPath);
+    updateFormConfig({ filePath: destPath });
+  }
+
   async function handleAdd() {
     if (!form.name.trim()) return;
     const ds = await window.aidclaude.catalog.add({
@@ -180,17 +193,21 @@ export function DataSourcePanel() {
           {(form.type === "csv" || form.type === "json" || form.type === "jsonl") && (
             <>
               <div style={{ marginBottom: 5 }}>
-                <label style={{ display: "block", color: "#888", marginBottom: 2, fontSize: 11 }}>파일 경로</label>
-                <input
-                  value={(form.config as CsvConfig).filePath ?? ""}
-                  onChange={(e) => updateFormConfig({ filePath: e.target.value })}
-                  placeholder={
-                    form.type === "csv" ? "C:\\data\\file.csv"
-                    : form.type === "jsonl" ? "C:\\data\\file.jsonl"
-                    : "C:\\data\\file.json"
-                  }
-                  style={{ width: "100%" }}
-                />
+                <label style={{ display: "block", color: "#888", marginBottom: 2, fontSize: 11 }}>파일</label>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    style={{ fontSize: 11, padding: "4px 10px", flexShrink: 0 }}
+                    onClick={handleSelectFile}
+                  >
+                    파일 선택
+                  </button>
+                  <span style={{ fontSize: 11, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {(form.config as CsvConfig).filePath
+                      ? (form.config as CsvConfig).filePath!.replace(/\\/g, "/").split("/").pop()
+                      : "선택된 파일 없음"}
+                  </span>
+                </div>
               </div>
               {form.type === "json" && (
                 <div style={{ marginBottom: 5 }}>

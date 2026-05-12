@@ -47,6 +47,12 @@ contextBridge.exposeInMainWorld("aidclaude", {
     open: (fp: string) => ipcRenderer.invoke("files:open", fp),
     readText: (fp: string) => ipcRenderer.invoke("files:readText", fp),
     readBase64: (fp: string) => ipcRenderer.invoke("files:readBase64", fp),
+    copyToData: (srcPath: string) => ipcRenderer.invoke("files:copyToData", srcPath),
+  },
+  // Native dialogs
+  dialog: {
+    openFile: (filters: { name: string; extensions: string[] }[]) =>
+      ipcRenderer.invoke("dialog:openFile", filters),
   },
   // Events (main → renderer push) — allowlisted channels only, with leak-free wrapper registry
   on: (channel: string, fn: (...args: unknown[]) => void) => {

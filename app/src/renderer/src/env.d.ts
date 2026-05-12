@@ -34,6 +34,10 @@ declare global {
         open(fp: string): Promise<void>;
         readText(fp: string): Promise<string>;
         readBase64(path: string): Promise<string>;
+        copyToData(srcPath: string): Promise<string>;
+      };
+      dialog: {
+        openFile(filters: { name: string; extensions: string[] }[]): Promise<string | null>;
       };
       on(channel: string, fn: (...args: unknown[]) => void): void;
       off(channel: string, fn: (...args: unknown[]) => void): void;
