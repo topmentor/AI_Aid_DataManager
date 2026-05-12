@@ -71,7 +71,14 @@ export async function createJob(
 
   const systemPrompt = buildSystemPrompt(schemas);
 
-  // Write context.md for reference
+  // CLAUDE.md — Claude Code reads this automatically from cwd (avoids --append-system-prompt CLI escaping issues on Windows)
+  await fs.writeFile(
+    path.join(workspaceDir, "CLAUDE.md"),
+    systemPrompt,
+    "utf-8"
+  );
+
+  // context.md — human-readable reference only
   await fs.writeFile(
     path.join(workspaceDir, "context.md"),
     `# User Request\n${userRequest}\n\n# System Prompt\n${systemPrompt}`,

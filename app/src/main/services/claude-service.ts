@@ -37,21 +37,6 @@ export async function sendMessage(
     throw new Error(`Job ${jobId} not found`);
   }
 
-  // Read system prompt from context.md
-  let systemPrompt = "";
-  try {
-    const contextMd = await fs.readFile(
-      path.join(job.workspaceDir, "context.md"),
-      "utf-8"
-    );
-    // Extract just the system prompt portion (after "# System Prompt\n")
-    const marker = "# System Prompt\n";
-    const idx = contextMd.indexOf(marker);
-    systemPrompt = idx >= 0 ? contextMd.slice(idx + marker.length) : contextMd;
-  } catch {
-    // context.md missing — proceed without system prompt
-  }
-
   // Prevent double-send for same job
   if (abortControllers.has(jobId)) {
     throw new Error(`Job ${jobId} is already running`);
@@ -65,11 +50,11 @@ export async function sendMessage(
   try {
     let assistantBuffer = "";
 
+    // CLAUDE.md in workspaceDir is read automatically by Claude Code — no --append-system-prompt needed
     for await (const raw of queryClaude({
       prompt: message,
       cwd: job.workspaceDir,
       claudeBin,
-      systemPromptAppend: systemPrompt || undefined,
       allowedTools: ["Read", "Edit", "Write"],
       permissionMode: "acceptEdits",
       abortSignal: ac.signal,
