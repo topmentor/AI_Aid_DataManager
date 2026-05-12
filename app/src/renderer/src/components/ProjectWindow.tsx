@@ -1,15 +1,7 @@
 import { DataSourcePanel } from "./DataSourcePanel";
 import { ChatPanel } from "./ChatPanel";
 import { CodePanel } from "./CodePanel";
-
-// Temporary placeholder — will be replaced in Task 12
-function ResultPanel() {
-  return (
-    <div style={{ padding: 12, color: "#555", fontSize: 12 }}>
-      결과 패널 (Task 12에서 구현)
-    </div>
-  );
-}
+import { ResultPanel } from "./ResultPanel";
 
 export function ProjectWindow() {
   return (

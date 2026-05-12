@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
+import os from "node:os";
 import { probeClaude } from "./services/claude-detector.js";
 import { getSettings, setSettings } from "./services/settings-service.js";
 import { listSources, addSource, updateSource, removeSource } from "./services/catalog-service.js";
@@ -89,4 +90,14 @@ ipcMain.handle("files:readText", async (_e, fp: string) => {
     throw new Error("Access denied: path outside allowed directories");
   }
   return fs.readFile(resolved, "utf-8");
+});
+ipcMain.handle("files:readBase64", async (_e, fp: string) => {
+  const userData = app.getPath("userData");
+  const tmpDir = os.tmpdir();
+  const normalized = path.normalize(fp);
+  if (!normalized.startsWith(userData) && !normalized.startsWith(tmpDir)) {
+    throw new Error("Access denied");
+  }
+  const buf = await fs.readFile(normalized);
+  return buf.toString("base64");
 });

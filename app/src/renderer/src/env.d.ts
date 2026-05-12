@@ -33,6 +33,7 @@ declare global {
       files: {
         open(fp: string): Promise<void>;
         readText(fp: string): Promise<string>;
+        readBase64(path: string): Promise<string>;
       };
       on(channel: string, fn: (...args: unknown[]) => void): void;
       off(channel: string, fn: (...args: unknown[]) => void): void;
