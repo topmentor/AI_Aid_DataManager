@@ -11,6 +11,11 @@ import type { ClaudeStreamEvent } from "../../shared/types.js";
 // One AbortController per active job
 const abortControllers = new Map<string, AbortController>();
 
+function pushJobUpdate(win: BrowserWindow, job: import("../../shared/types.js").Job | undefined): void {
+  if (!job) return;
+  win.webContents.send("job:update", job);
+}
+
 function pushEvent(
   win: BrowserWindow,
   jobId: string,
@@ -45,6 +50,11 @@ export async function sendMessage(
     systemPrompt = idx >= 0 ? contextMd.slice(idx + marker.length) : contextMd;
   } catch {
     // context.md missing — proceed without system prompt
+  }
+
+  // Prevent double-send for same job
+  if (abortControllers.has(jobId)) {
+    throw new Error(`Job ${jobId} is already running`);
   }
 
   const ac = new AbortController();
@@ -98,6 +108,7 @@ export async function sendMessage(
         const errMsg = `AST validation failed:\n${validation.errors.join("\n")}`;
         await updateJob(jobId, { status: "error", errorMsg: errMsg });
         pushEvent(win, jobId, { type: "error", message: errMsg });
+        pushJobUpdate(win, getJob(jobId));
         return;
       }
 
@@ -120,14 +131,21 @@ export async function sendMessage(
       }
 
       // Push updated job to renderer
-      win.webContents.send("job:update", getJob(jobId));
-    } catch {
-      // analyze.py does not exist yet — Claude may still be writing it
-      // Status stays at "planning", no error
+      pushJobUpdate(win, getJob(jobId));
+    } catch (readErr) {
+      const code = (readErr as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") {
+        const msg = (readErr as Error).message;
+        pushEvent(win, jobId, { type: "error", message: `analyze.py error: ${msg}` });
+        await updateJob(jobId, { status: "error", errorMsg: msg });
+        pushJobUpdate(win, getJob(jobId));
+      }
+      // ENOENT = analyze.py doesn't exist yet, that's OK
     }
   } catch (err) {
     if ((err as Error).name === "AbortError") {
       await updateJob(jobId, { status: "idle" });
+      pushJobUpdate(win, getJob(jobId));
       return;
     }
     const msg = (err as Error).message;
