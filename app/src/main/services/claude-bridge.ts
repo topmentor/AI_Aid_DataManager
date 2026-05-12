@@ -73,7 +73,7 @@ export async function* queryClaude(opts: ClaudeQueryOpts): AsyncGenerator<unknow
       try {
         yield JSON.parse(line);
       } catch {
-        // Non-JSON lines silently ignored
+        process.stderr.write(`[claude-bridge] non-JSON stdout: ${line}\n`);
       }
     }
   } finally {

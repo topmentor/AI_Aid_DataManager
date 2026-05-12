@@ -22,7 +22,7 @@ function getVersion(bin: string): Promise<string | null> {
 function resolveBinaryPath(bin: string): Promise<string | null> {
   return new Promise((resolve) => {
     const cmd = process.platform === "win32" ? "where" : "which";
-    const args = process.platform === "win32" ? [bin] : [bin];
+    const args = [bin];
     try {
       const child = spawn(cmd, args, {
         stdio: ["ignore", "pipe", "ignore"],
@@ -66,6 +66,7 @@ export async function probeClaude(
   const startedAt = Date.now();
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 30_000);
+  timer.unref();
 
   try {
     let sawResult = false;
