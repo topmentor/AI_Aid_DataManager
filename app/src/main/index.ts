@@ -7,6 +7,7 @@ import { listSources, addSource, updateSource, removeSource } from "./services/c
 import { inspectSchema, testConnection } from "./services/schema-inspector.js";
 import type { AppSettings, DataSource } from "../shared/types.js";
 import { loadJobs, createJob } from "./services/job-service.js";
+import { sendMessage as claudeSendMessage, abortJob } from "./services/claude-service.js";
 
 let win: BrowserWindow | null = null;
 
@@ -59,12 +60,15 @@ ipcMain.handle("catalog:getSchema", async (_e, id: string) => {
   return inspectSchema(ds);
 });
 
-// Claude (stub — implemented in Task 3 + 8)
+// Claude (Task 3 + 8)
 ipcMain.handle("claude:probe", () =>
   probeClaude({ cwd: app.getPath("userData") })
 );
-ipcMain.handle("claude:sendMessage", () => {});
-ipcMain.handle("claude:abort", () => {});
+ipcMain.handle("claude:sendMessage", async (_e, jobId: string, msg: string) => {
+  if (!win) throw new Error("Window not initialized");
+  await claudeSendMessage(win, jobId, msg);
+});
+ipcMain.handle("claude:abort", (_e, jobId: string) => abortJob(jobId));
 
 // Jobs (Task 7)
 ipcMain.handle("jobs:list", loadJobs);
