@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { probeClaude } from "./services/claude-detector.js";
 
 let win: BrowserWindow | null = null;
 
@@ -47,10 +48,9 @@ ipcMain.handle("catalog:testConnection", () => ({ ok: false, error: "Not yet imp
 ipcMain.handle("catalog:getSchema", () => { throw new Error("Not yet implemented"); });
 
 // Claude (stub — implemented in Task 3 + 8)
-ipcMain.handle("claude:probe", () => ({
-  binaryPath: null, version: null, authenticated: false,
-  roundTripMs: null, error: "Claude service not yet initialized",
-}));
+ipcMain.handle("claude:probe", () =>
+  probeClaude({ cwd: app.getPath("userData") })
+);
 ipcMain.handle("claude:sendMessage", () => {});
 ipcMain.handle("claude:abort", () => {});
 
