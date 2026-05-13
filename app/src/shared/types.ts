@@ -6,7 +6,7 @@ export interface MariaDbConfig {
 export interface CsvConfig { filePath: string; delimiter?: string; }
 export interface JsonConfig { filePath: string; rootPath?: string; }
 export interface JsonlConfig { filePath: string; }
-export interface ShapefileConfig { shpPath: string; }
+export interface ShapefileConfig { shpPath: string; encoding?: string; }
 
 interface DataSourceBase {
   id: string;

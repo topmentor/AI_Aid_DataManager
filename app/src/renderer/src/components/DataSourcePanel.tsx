@@ -296,8 +296,8 @@ export function DataSourcePanel() {
         { name: "Shapefile", extensions: ["shp"] },
       ]);
       if (!srcPath) return;
-      const destPath = await window.aidclaude.files.copyShapefile(srcPath);
-      updateFormConfig({ shpPath: destPath });
+      const { shpPath, encoding } = await window.aidclaude.files.copyShapefile(srcPath);
+      updateFormConfig({ shpPath, encoding });
       if (!form.name.trim()) {
         const baseName = srcPath.replace(/\\/g, "/").split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
         if (baseName) setForm((f) => ({ ...f, name: baseName }));
@@ -482,6 +482,23 @@ export function DataSourcePanel() {
                       ? ((form.config as CsvConfig).delimiter === "\t" ? "Tab" : (form.config as CsvConfig).delimiter)
                       : "자동 감지 ▾"}
                   </button>
+                </div>
+              )}
+              {form.type === "shapefile" && (
+                <div className="dsp-field">
+                  <label className="dsp-label">DBF 인코딩</label>
+                  <select
+                    className="dsp-input"
+                    title="DBF 파일 인코딩"
+                    value={(form.config as ShapefileConfig).encoding ?? "euc-kr"}
+                    onChange={(e) => updateFormConfig({ encoding: e.target.value })}
+                  >
+                    <option value="euc-kr">EUC-KR / CP949 (한글)</option>
+                    <option value="utf-8">UTF-8</option>
+                    <option value="windows-1252">Windows-1252 (서유럽)</option>
+                    <option value="big5">Big5 (중국 번체)</option>
+                    <option value="gbk">GBK (중국 간체)</option>
+                  </select>
                 </div>
               )}
             </>

@@ -385,7 +385,7 @@ ipcMain.handle("files:copyToData", async (_e, srcPath: string) => {
 });
 
 // Copy shapefile set (.shp + .dbf + .shx + .prj + .cpg) to workspaceRoot/data/
-// Returns the destination .shp path
+// Returns { shpPath, encoding } where encoding is detected from .cpg (default: "euc-kr")
 ipcMain.handle("files:copyShapefile", async (_e, srcShpPath: string) => {
   const { workspaceRoot } = await getSettings();
   const dataDir = path.join(workspaceRoot, "data");
@@ -404,5 +404,16 @@ ipcMain.handle("files:copyShapefile", async (_e, srcShpPath: string) => {
       // optional sidecar — skip if missing
     }
   }
-  return path.join(dataDir, destBase + ".shp");
+  // Detect encoding from .cpg; default to euc-kr for Korean shapefiles
+  let encoding = "euc-kr";
+  const cpgDest = path.join(dataDir, destBase + ".cpg");
+  try {
+    const cpg = (await fs.readFile(cpgDest, "utf-8")).trim().toLowerCase();
+    if (cpg === "utf-8" || cpg === "utf8") encoding = "utf-8";
+    else if (cpg === "utf-16" || cpg === "utf-16le") encoding = "utf-16le";
+    // cp949, euc-kr, ks_c_5601-1987, ksc5601 → euc-kr (already default)
+  } catch {
+    // no .cpg → keep euc-kr default
+  }
+  return { shpPath: path.join(dataDir, destBase + ".shp"), encoding };
 });

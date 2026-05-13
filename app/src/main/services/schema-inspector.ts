@@ -149,7 +149,8 @@ async function inspectShapefile(ds: DataSource & { type: "shapefile" }): Promise
   const shp = await import("shapefile");
   const shpPath = ds.config.shpPath;
   const dbfPath = shpPath.replace(/\.shp$/i, ".dbf");
-  const source = await shp.open(shpPath, dbfPath);
+  const encoding = ds.config.encoding ?? "euc-kr";
+  const source = await shp.open(shpPath, dbfPath, { encoding });
   const result = await source.read();
   if (result.done) {
     return { sourceId: ds.id, sourceName: ds.name, type: "shapefile", columns: [{ name: "x", type: "number" }, { name: "y", type: "number" }] };
@@ -260,7 +261,8 @@ async function previewShapefile(ds: DataSource & { type: "shapefile" }, limit: n
   const shp = await import("shapefile");
   const shpPath = ds.config.shpPath;
   const dbfPath = shpPath.replace(/\.shp$/i, ".dbf");
-  const source = await shp.open(shpPath, dbfPath);
+  const encoding = ds.config.encoding ?? "euc-kr";
+  const source = await shp.open(shpPath, dbfPath, { encoding });
   const features: Array<{ props: Record<string, unknown>; x: string; y: string }> = [];
   for (;;) {
     const result = await source.read();

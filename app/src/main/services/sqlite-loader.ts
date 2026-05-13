@@ -123,7 +123,8 @@ async function fromShapefile(db: Database.Database, ds: DataSource & { type: "sh
   const tableName = toTableName(ds.name);
   const shpPath = ds.config.shpPath;
   const dbfPath = shpPath.replace(/\.shp$/i, ".dbf");
-  const source = await shp.open(shpPath, dbfPath);
+  const encoding = ds.config.encoding ?? "euc-kr";
+  const source = await shp.open(shpPath, dbfPath, { encoding });
   const rows: Record<string, unknown>[] = [];
   for (;;) {
     const result = await source.read();
