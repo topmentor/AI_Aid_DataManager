@@ -118,6 +118,27 @@ async function fromMariaDb(db: Database.Database, ds: DataSource & { type: "mari
   return results;
 }
 
+async function fromShapefile(db: Database.Database, ds: DataSource & { type: "shapefile" }): Promise<TableLoadResult[]> {
+  const shp = await import("shapefile");
+  const tableName = toTableName(ds.name);
+  const shpPath = ds.config.shpPath;
+  const dbfPath = shpPath.replace(/\.shp$/i, ".dbf");
+  const source = await shp.open(shpPath, dbfPath);
+  const rows: Record<string, unknown>[] = [];
+  for (;;) {
+    const result = await source.read();
+    if (result.done) break;
+    const f = result.value;
+    const coords = f.geometry?.type === "Point"
+      ? (f.geometry as { coordinates: number[] }).coordinates
+      : [null, null];
+    rows.push({ ...(f.properties ?? {}), x: coords[0], y: coords[1] });
+  }
+  const fields = rows.length > 0 ? Object.keys(rows[0]) : ["x", "y"];
+  const rowCount = createAndInsert(db, tableName, fields, rows);
+  return [{ tableName, rowCount }];
+}
+
 export async function loadSourceToDb(
   db: Database.Database,
   ds: DataSource
@@ -125,10 +146,11 @@ export async function loadSourceToDb(
   try {
     let tables: TableLoadResult[] = [];
     switch (ds.type) {
-      case "csv":     tables = await fromCsv(db, ds);     break;
-      case "json":    tables = await fromJson(db, ds);    break;
-      case "jsonl":   tables = await fromJsonl(db, ds);   break;
-      case "mariadb": tables = await fromMariaDb(db, ds); break;
+      case "csv":       tables = await fromCsv(db, ds);       break;
+      case "json":      tables = await fromJson(db, ds);      break;
+      case "jsonl":     tables = await fromJsonl(db, ds);     break;
+      case "mariadb":   tables = await fromMariaDb(db, ds);   break;
+      case "shapefile": tables = await fromShapefile(db, ds); break;
     }
     return { sourceName: ds.name, tables };
   } catch (e) {

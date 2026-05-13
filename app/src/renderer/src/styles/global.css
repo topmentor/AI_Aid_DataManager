@@ -1261,6 +1261,7 @@ code {
 .ds-badge-csv  { background: #0e2e0e; color: #5ac85a; border: 1px solid #1a4a1a; }
 .ds-badge-json { background: #2e2000; color: #d4a030; border: 1px solid #4a3000; font-family: monospace; }
 .ds-badge-jsonl{ background: #1e0e2e; color: #b06ad4; border: 1px solid #3a1a4a; }
+.ds-badge-shp  { background: #0e1e12; color: #4caf7d; border: 1px solid #1a3a24; }
 /* icon action buttons */
 .dsp-icon-btn { background: none; border: 1px solid transparent; color: #777; font-size: 13px; width: 24px; height: 22px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: background 0.1s, color 0.1s; }
 .dsp-icon-btn:hover { background: #3a3a3a; color: #c8c8c8; border-color: #484848; }

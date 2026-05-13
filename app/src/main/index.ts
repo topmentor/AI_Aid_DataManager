@@ -383,3 +383,26 @@ ipcMain.handle("files:copyToData", async (_e, srcPath: string) => {
   await fs.copyFile(srcPath, destPath);
   return destPath;
 });
+
+// Copy shapefile set (.shp + .dbf + .shx + .prj + .cpg) to workspaceRoot/data/
+// Returns the destination .shp path
+ipcMain.handle("files:copyShapefile", async (_e, srcShpPath: string) => {
+  const { workspaceRoot } = await getSettings();
+  const dataDir = path.join(workspaceRoot, "data");
+  await fs.mkdir(dataDir, { recursive: true });
+  const srcDir = path.dirname(srcShpPath);
+  const srcBase = path.basename(srcShpPath, ".shp");
+  const timestamp = Date.now();
+  const destBase = `${srcBase.replace(/[^a-zA-Z0-9_\-]/g, "_")}_${timestamp}`;
+  const sidecarExts = [".shp", ".dbf", ".shx", ".prj", ".cpg"];
+  for (const ext of sidecarExts) {
+    const srcFile = path.join(srcDir, srcBase + ext);
+    try {
+      await fs.access(srcFile);
+      await fs.copyFile(srcFile, path.join(dataDir, destBase + ext));
+    } catch {
+      // optional sidecar — skip if missing
+    }
+  }
+  return path.join(dataDir, destBase + ".shp");
+});

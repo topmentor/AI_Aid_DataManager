@@ -145,12 +145,38 @@ async function inspectJsonl(ds: DataSource & { type: "jsonl" }): Promise<DataSou
   return { sourceId: ds.id, sourceName: ds.name, type: "jsonl", columns };
 }
 
+async function inspectShapefile(ds: DataSource & { type: "shapefile" }): Promise<DataSourceSchema> {
+  const shp = await import("shapefile");
+  const shpPath = ds.config.shpPath;
+  const dbfPath = shpPath.replace(/\.shp$/i, ".dbf");
+  const source = await shp.open(shpPath, dbfPath);
+  const result = await source.read();
+  if (result.done) {
+    return { sourceId: ds.id, sourceName: ds.name, type: "shapefile", columns: [{ name: "x", type: "number" }, { name: "y", type: "number" }] };
+  }
+  const feature = result.value;
+  const props = (feature.properties ?? {}) as Record<string, unknown>;
+  const propColumns: ColumnSchema[] = Object.keys(props).map((name) => ({
+    name,
+    type: typeof props[name],
+    sample: String(props[name] ?? ""),
+  }));
+  const coords = feature.geometry?.type === "Point" ? (feature.geometry as { coordinates: number[] }).coordinates : [0, 0];
+  const columns: ColumnSchema[] = [
+    ...propColumns,
+    { name: "x", type: "number", sample: String(coords[0] ?? "") },
+    { name: "y", type: "number", sample: String(coords[1] ?? "") },
+  ];
+  return { sourceId: ds.id, sourceName: ds.name, type: "shapefile", columns };
+}
+
 export async function inspectSchema(ds: DataSource): Promise<DataSourceSchema> {
   switch (ds.type) {
-    case "mariadb": return inspectMariaDb(ds);
-    case "csv":     return inspectCsv(ds);
-    case "json":    return inspectJson(ds);
-    case "jsonl":   return inspectJsonl(ds);
+    case "mariadb":    return inspectMariaDb(ds);
+    case "csv":        return inspectCsv(ds);
+    case "json":       return inspectJson(ds);
+    case "jsonl":      return inspectJsonl(ds);
+    case "shapefile":  return inspectShapefile(ds);
   }
 }
 
@@ -173,10 +199,11 @@ export interface PreviewResult {
 
 export async function previewData(ds: DataSource, limit = 50): Promise<PreviewResult> {
   switch (ds.type) {
-    case "csv":     return previewCsv(ds, limit);
-    case "json":    return previewJson(ds, limit);
-    case "jsonl":   return previewJsonl(ds, limit);
-    case "mariadb": return previewMariaDb(ds, limit);
+    case "csv":       return previewCsv(ds, limit);
+    case "json":      return previewJson(ds, limit);
+    case "jsonl":     return previewJsonl(ds, limit);
+    case "mariadb":   return previewMariaDb(ds, limit);
+    case "shapefile": return previewShapefile(ds, limit);
   }
 }
 
@@ -226,6 +253,36 @@ async function previewJson(ds: DataSource & { type: "json" }, limit: number): Pr
   const rows = Object.entries(obj)
     .slice(0, limit)
     .map(([k, v]) => [k, toCell(v)]);
+  return { title: ds.name, headers, rows };
+}
+
+async function previewShapefile(ds: DataSource & { type: "shapefile" }, limit: number): Promise<PreviewResult> {
+  const shp = await import("shapefile");
+  const shpPath = ds.config.shpPath;
+  const dbfPath = shpPath.replace(/\.shp$/i, ".dbf");
+  const source = await shp.open(shpPath, dbfPath);
+  const features: Array<{ props: Record<string, unknown>; x: string; y: string }> = [];
+  for (;;) {
+    const result = await source.read();
+    if (result.done || features.length >= limit) break;
+    const f = result.value;
+    const coords = f.geometry?.type === "Point"
+      ? (f.geometry as { coordinates: number[] }).coordinates
+      : [null, null];
+    features.push({
+      props: (f.properties ?? {}) as Record<string, unknown>,
+      x: coords[0] != null ? String(coords[0]) : "",
+      y: coords[1] != null ? String(coords[1]) : "",
+    });
+  }
+  if (features.length === 0) return { title: ds.name, headers: [], rows: [] };
+  const propKeys = Object.keys(features[0].props);
+  const headers = [...propKeys, "x", "y"];
+  const rows = features.map((f) => [
+    ...propKeys.map((k) => String(f.props[k] ?? "")),
+    f.x,
+    f.y,
+  ]);
   return { title: ds.name, headers, rows };
 }
 

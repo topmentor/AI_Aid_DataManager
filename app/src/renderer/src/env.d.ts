@@ -49,6 +49,7 @@ declare global {
         readLines(fp: string, count: number): Promise<string[]>;
         readBase64(path: string): Promise<string>;
         copyToData(srcPath: string): Promise<string>;
+        copyShapefile(srcShpPath: string): Promise<string>;
       };
       export: {
         saveText(defaultName: string, filters: { name: string; extensions: string[] }[], content: string): Promise<string | null>;

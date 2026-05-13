@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useAppStore } from "../store/appStore";
 import type {
   DataSource, DataSourceType, DataSourceSchema,
-  MariaDbConfig, CsvConfig, JsonConfig, JsonlConfig,
+  MariaDbConfig, CsvConfig, JsonConfig, JsonlConfig, ShapefileConfig,
 } from "../../../shared/types";
 
 // ── Delimiter picker dialog (portal, non-modal) ──────────────────────────────
@@ -147,10 +147,11 @@ function DelimiterDialog({
 // ── Type badge ───────────────────────────────────────────────────────────────
 
 const TYPE_BADGE: Record<DataSourceType, { label: string; cls: string }> = {
-  mariadb: { label: "DB",   cls: "ds-badge-db" },
-  csv:     { label: "CSV",  cls: "ds-badge-csv" },
-  json:    { label: "{ }",  cls: "ds-badge-json" },
-  jsonl:   { label: "≡",    cls: "ds-badge-jsonl" },
+  mariadb:   { label: "DB",   cls: "ds-badge-db" },
+  csv:       { label: "CSV",  cls: "ds-badge-csv" },
+  json:      { label: "{ }",  cls: "ds-badge-json" },
+  jsonl:     { label: "≡",    cls: "ds-badge-jsonl" },
+  shapefile: { label: "SHP",  cls: "ds-badge-shp" },
 };
 
 // ── Schema popup (portal, non-modal) ─────────────────────────────────────────
@@ -252,7 +253,7 @@ function SchemaPopup({
 
 // ── Form helpers ─────────────────────────────────────────────────────────────
 
-type FormConfig = Partial<MariaDbConfig & CsvConfig & JsonConfig & JsonlConfig>;
+type FormConfig = Partial<MariaDbConfig & CsvConfig & JsonConfig & JsonlConfig & ShapefileConfig>;
 
 interface AddForm {
   name: string;
@@ -283,11 +284,26 @@ export function DataSourcePanel() {
     const config: FormConfig =
       type === "mariadb"
         ? { host: "localhost", port: 3306, database: "", user: "", password: "" }
+        : type === "shapefile"
+        ? { shpPath: "" }
         : { filePath: "" };
     setForm({ ...DEFAULT_FORM, type, config });
   }
 
   async function handleSelectFile() {
+    if (form.type === "shapefile") {
+      const srcPath = await window.aidclaude.dialog.openFile([
+        { name: "Shapefile", extensions: ["shp"] },
+      ]);
+      if (!srcPath) return;
+      const destPath = await window.aidclaude.files.copyShapefile(srcPath);
+      updateFormConfig({ shpPath: destPath });
+      if (!form.name.trim()) {
+        const baseName = srcPath.replace(/\\/g, "/").split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
+        if (baseName) setForm((f) => ({ ...f, name: baseName }));
+      }
+      return;
+    }
     const filters =
       form.type === "csv"
         ? [{ name: "CSV 파일", extensions: ["csv", "txt"] }]
@@ -310,7 +326,7 @@ export function DataSourcePanel() {
     const ds = await window.aidclaude.catalog.add({
       name: form.name.trim(),
       type: form.type,
-      config: form.config as MariaDbConfig | CsvConfig | JsonConfig | JsonlConfig,
+      config: form.config as MariaDbConfig | CsvConfig | JsonConfig | JsonlConfig | ShapefileConfig,
     });
     setSources([...sources, ds]);
     setForm(DEFAULT_FORM);
@@ -402,6 +418,7 @@ export function DataSourcePanel() {
               <option value="csv">CSV 파일</option>
               <option value="json">JSON 파일</option>
               <option value="jsonl">JSONL 파일</option>
+              <option value="shapefile">Shapefile (.shp)</option>
             </select>
           </div>
 
@@ -423,7 +440,7 @@ export function DataSourcePanel() {
             ))
           )}
 
-          {(form.type === "csv" || form.type === "json" || form.type === "jsonl") && (
+          {(form.type === "csv" || form.type === "json" || form.type === "jsonl" || form.type === "shapefile") && (
             <>
               <div className="dsp-field">
                 <label className="dsp-label">파일</label>
@@ -432,9 +449,13 @@ export function DataSourcePanel() {
                     파일 선택
                   </button>
                   <span className="dsp-file-name">
-                    {(form.config as CsvConfig).filePath
-                      ? (form.config as CsvConfig).filePath!.replace(/\\/g, "/").split("/").pop()
-                      : "선택된 파일 없음"}
+                    {form.type === "shapefile"
+                      ? ((form.config as ShapefileConfig).shpPath
+                          ? (form.config as ShapefileConfig).shpPath!.replace(/\\/g, "/").split("/").pop()
+                          : "선택된 파일 없음")
+                      : ((form.config as CsvConfig).filePath
+                          ? (form.config as CsvConfig).filePath!.replace(/\\/g, "/").split("/").pop()
+                          : "선택된 파일 없음")}
                   </span>
                 </div>
               </div>

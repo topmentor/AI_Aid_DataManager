@@ -69,6 +69,7 @@ contextBridge.exposeInMainWorld("aidclaude", {
     readLines: (fp: string, count: number) => ipcRenderer.invoke("files:readLines", fp, count),
     readBase64: (fp: string) => ipcRenderer.invoke("files:readBase64", fp),
     copyToData: (srcPath: string) => ipcRenderer.invoke("files:copyToData", srcPath),
+    copyShapefile: (srcShpPath: string) => ipcRenderer.invoke("files:copyShapefile", srcShpPath),
   },
   // Export (native save dialog + write)
   export: {
