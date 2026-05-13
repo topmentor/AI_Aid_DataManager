@@ -1111,6 +1111,14 @@ code {
 .cp-modal-input-err { border-color: #f48771 !important; }
 .cp-modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .cp-modal-confirm { font-size: 12px; padding: 5px 16px; }
+.cp-export-progress { width: 280px; align-items: center; text-align: center; padding: 28px 24px; gap: 14px; }
+.cp-export-progress-spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid #444; border-top-color: #0e639c;
+  animation: cp-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes cp-spin { to { transform: rotate(360deg); } }
 .rp-export-bar {
   display: flex;
   align-items: center;

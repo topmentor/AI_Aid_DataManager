@@ -281,6 +281,7 @@ export function CenterPanel() {
   const activeTab = centerTabs.find(t => t.id === activeCenterTabId) ?? null;
   const prevStatusRef = useRef<Record<string, string>>({});
   const [loadingMore, setLoadingMore] = useState(false);
+  const [exportingFmt, setExportingFmt] = useState<"csv" | "json" | null>(null);
 
   // 소스로 저장 모달 상태
   const [modalOpen, setModalOpen] = useState(false);
@@ -357,6 +358,49 @@ export function CenterPanel() {
       }
     } finally {
       setSaveBusy(false);
+    }
+  }
+
+  /** 소스 전체 행을 가져옴 (미리보기 제한 없이) */
+  async function fetchAllRows(): Promise<{ headers: string[]; rows: string[][] }> {
+    const ref = activeTab?.sourceRef;
+    if (!ref) return { headers: activeTab?.headers ?? [], rows: activeTab?.rows ?? [] };
+    if (ref.kind === "catalog") {
+      return window.aidclaude.catalog.previewData(ref.sourceId, 100_000_000);
+    } else {
+      return window.aidclaude.db.previewTable(ref.jobId, ref.tableName, 100_000_000);
+    }
+  }
+
+  async function handleExportCSV() {
+    if (!activeTab) return;
+    setExportingFmt("csv");
+    try {
+      const { headers, rows } =
+        activeTab.fullyLoaded || !activeTab.sourceRef
+          ? { headers: activeTab.headers, rows: activeTab.rows }
+          : await fetchAllRows();
+      await exportCSV(activeTab.title, headers, rows);
+    } catch (e) {
+      alert(`CSV 내보내기 실패: ${(e as Error).message}`);
+    } finally {
+      setExportingFmt(null);
+    }
+  }
+
+  async function handleExportJSON() {
+    if (!activeTab) return;
+    setExportingFmt("json");
+    try {
+      const { headers, rows } =
+        activeTab.fullyLoaded || !activeTab.sourceRef
+          ? { headers: activeTab.headers, rows: activeTab.rows }
+          : await fetchAllRows();
+      await exportJSON(activeTab.title, headers, rows);
+    } catch (e) {
+      alert(`JSON 내보내기 실패: ${(e as Error).message}`);
+    } finally {
+      setExportingFmt(null);
     }
   }
 
@@ -449,12 +493,14 @@ export function CenterPanel() {
                 {activeTab.view === "table" && (
                   <div className="cp-export-btns">
                     <button type="button" className="cp-export-btn"
-                      onClick={() => exportCSV(activeTab.title, activeTab.headers, activeTab.rows)}>
-                      ↓ CSV
+                      disabled={exportingFmt !== null}
+                      onClick={handleExportCSV}>
+                      {exportingFmt === "csv" ? "불러오는 중…" : "↓ CSV"}
                     </button>
                     <button type="button" className="cp-export-btn"
-                      onClick={() => exportJSON(activeTab.title, activeTab.headers, activeTab.rows)}>
-                      ↓ JSON
+                      disabled={exportingFmt !== null}
+                      onClick={handleExportJSON}>
+                      {exportingFmt === "json" ? "불러오는 중…" : "↓ JSON"}
                     </button>
                   </div>
                 )}
@@ -499,6 +545,21 @@ export function CenterPanel() {
           </>
         )}
       </div>
+
+      {/* ── Export 진행 다이어로그 ── */}
+      {exportingFmt !== null && (
+        <div className="cp-modal-overlay">
+          <div className="cp-modal cp-export-progress">
+            <div className="cp-export-progress-spinner" />
+            <p className="cp-modal-title">
+              {exportingFmt === "csv" ? "CSV" : "JSON"} 내보내기 준비 중
+            </p>
+            <p className="cp-modal-hint">
+              전체 데이터를 불러오고 있습니다. 잠시만 기다려주세요…
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── 소스로 저장 모달 ── */}
       {modalOpen && (
