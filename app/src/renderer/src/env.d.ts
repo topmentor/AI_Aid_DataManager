@@ -33,6 +33,7 @@ declare global {
         runAnalysis(jobId: string): Promise<{ ok: boolean; error?: string }>;
         runSql(jobId: string, sql: string): Promise<{ ok: boolean; error?: string }>;
         refreshSources(jobId: string): Promise<void>;
+        getSqlOptions(jobId: string): Promise<{ title: string; sql: string }[]>;
       };
       data: {
         saveAsSource(sourceName: string, headers: string[], rows: string[][]): Promise<{ ok: boolean; source?: DataSource; error?: string }>;

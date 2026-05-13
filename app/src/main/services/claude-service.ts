@@ -10,7 +10,7 @@ import { getJob, updateJob, refreshJobSources, updateClaudeMd } from "./job-serv
 // One AbortController per active job
 const abortControllers = new Map<string, AbortController>();
 
-function parseSqlOptions(sql: string): { title: string; sql: string }[] | null {
+export function parseSqlOptions(sql: string): { title: string; sql: string }[] | null {
   const lines = sql.split("\n");
   const options: { title: string; sql: string }[] = [];
   let currentTitle = "";

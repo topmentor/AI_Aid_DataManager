@@ -62,5 +62,8 @@ ${tableList}
 
 - No INSERT / UPDATE / DELETE / DROP on source tables
 - No ATTACH DATABASE or load_extension
-- Quote table names containing hyphens: \`"my-table"\``;
+- Quote table names containing hyphens: \`"my-table"\`
+- **All options MUST write to the same table named \`result\`** — never use result2, result3, etc.
+  Each option must follow this exact pattern:
+  \`DROP TABLE IF EXISTS result; CREATE TABLE result AS SELECT ...;\``;
 }

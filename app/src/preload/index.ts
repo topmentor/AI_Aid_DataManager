@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld("aidclaude", {
     runAnalysis: (jobId: string) => ipcRenderer.invoke("jobs:runAnalysis", jobId),
     runSql: (jobId: string, sql: string) => ipcRenderer.invoke("jobs:runSql", jobId, sql),
     refreshSources: (jobId: string) => ipcRenderer.invoke("jobs:refreshSources", jobId),
+    getSqlOptions: (jobId: string) => ipcRenderer.invoke("jobs:getSqlOptions", jobId),
   },
   // 임의 데이터를 CSV 소스로 저장
   data: {

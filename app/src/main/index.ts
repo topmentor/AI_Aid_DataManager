@@ -9,7 +9,7 @@ import { inspectSchema, testConnection, previewData } from "./services/schema-in
 import type { AppSettings, DataSource } from "../shared/types.js";
 import { loadJobs, createJob, getJob, updateJob, refreshJobSources, updateClaudeMd } from "./services/job-service.js";
 import Database from "better-sqlite3";
-import { sendMessage as claudeSendMessage, abortJob } from "./services/claude-service.js";
+import { sendMessage as claudeSendMessage, abortJob, parseSqlOptions } from "./services/claude-service.js";
 
 // Suppress harmless "Request Autofill.enable failed" DevTools Protocol noise
 app.commandLine.appendSwitch("disable-features", "AutofillServerCommunication");
@@ -162,6 +162,18 @@ ipcMain.handle("jobs:runSql", async (_e, jobId: string, sql: string) => {
     return { ok: false, error: errMsg };
   } finally {
     db.close();
+  }
+});
+
+// Return parsed SQL options from query.sql (no auto-execution)
+ipcMain.handle("jobs:getSqlOptions", async (_e, jobId: string) => {
+  const job = getJob(jobId);
+  if (!job) return [];
+  try {
+    const sql = await fs.readFile(path.join(job.workspaceDir, "query.sql"), "utf-8");
+    return parseSqlOptions(sql) ?? [];
+  } catch {
+    return [];
   }
 });
 

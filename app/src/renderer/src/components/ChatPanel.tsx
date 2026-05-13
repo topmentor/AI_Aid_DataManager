@@ -147,9 +147,27 @@ export function ChatPanel() {
     if (activeJobId) window.aidclaude.claude.abort(activeJobId);
   }
 
-  async function handleOptionSelect(text: string) {
+  async function handleOptionSelect(text: string, index: number) {
     const jobId = activeJobId;
     if (!jobId || streaming) return;
+
+    // 직접 SQL 실행: query.sql에서 해당 옵션 SQL을 추출해 Claude 재호출 없이 바로 실행
+    const options = await window.aidclaude.jobs.getSqlOptions(jobId);
+    const matched = options[index] ?? options.find((o) => o.title === text);
+
+    if (matched) {
+      addChatMessage(jobId, {
+        role: "user",
+        text,
+        status: "done",
+        toolCalls: [],
+        timestamp: new Date().toISOString(),
+      });
+      window.aidclaude.jobs.runSql(jobId, matched.sql).catch(() => {});
+      return;
+    }
+
+    // 폴백: SQL 옵션을 찾지 못한 경우 Claude에게 재요청
     addChatMessage(jobId, {
       role: "user",
       text,
@@ -248,7 +266,7 @@ export function ChatPanel() {
                                 type="button"
                                 className="cld-option-btn"
                                 disabled={!!streaming}
-                                onClick={() => handleOptionSelect(item)}
+                                onClick={() => handleOptionSelect(item, ii)}
                               >
                                 {item}
                               </button>
