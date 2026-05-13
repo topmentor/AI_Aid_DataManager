@@ -1,4 +1,11 @@
 import mysql from "mysql2/promise";
+
+/** null → null, object/array → JSON string, else → String */
+function toCell(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
 import fs from "node:fs/promises";
 import Papa from "papaparse";
 import type {
@@ -155,5 +162,101 @@ export async function testConnection(
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
+  }
+}
+
+export interface PreviewResult {
+  title: string;
+  headers: string[];
+  rows: string[][];
+}
+
+export async function previewData(ds: DataSource, limit = 50): Promise<PreviewResult> {
+  switch (ds.type) {
+    case "csv":     return previewCsv(ds, limit);
+    case "json":    return previewJson(ds, limit);
+    case "jsonl":   return previewJsonl(ds, limit);
+    case "mariadb": return previewMariaDb(ds, limit);
+  }
+}
+
+async function previewCsv(ds: DataSource & { type: "csv" }, limit: number): Promise<PreviewResult> {
+  const cfg = ds.config;
+  const raw = await fs.readFile(cfg.filePath, "utf-8");
+  const { data, meta } = Papa.parse<Record<string, string>>(raw, {
+    header: true,
+    preview: limit,
+    skipEmptyLines: true,
+    delimiter: cfg.delimiter,
+  });
+  const headers = meta.fields ?? [];
+  const rows = (data as Record<string, string>[]).map((row) => headers.map((h) => String(row[h] ?? "")));
+  return { title: ds.name, headers, rows };
+}
+
+async function previewJsonl(ds: DataSource & { type: "jsonl" }, limit: number): Promise<PreviewResult> {
+  const cfg = ds.config;
+  const raw = await fs.readFile(cfg.filePath, "utf-8");
+  const lines = raw.trim().split("\n").filter(Boolean).slice(0, limit);
+  if (lines.length === 0) return { title: ds.name, headers: [], rows: [] };
+  const parsed = lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+  const headers = Object.keys(parsed[0]);
+  const rows = parsed.map((obj) => headers.map((h) => toCell(obj[h])));
+  return { title: ds.name, headers, rows };
+}
+
+async function previewJson(ds: DataSource & { type: "json" }, limit: number): Promise<PreviewResult> {
+  const cfg = ds.config;
+  const raw = await fs.readFile(cfg.filePath, "utf-8");
+  let parsed: unknown = JSON.parse(raw);
+  if (cfg.rootPath) {
+    for (const key of cfg.rootPath.split(".")) {
+      parsed = (parsed as Record<string, unknown>)[key];
+    }
+  }
+  if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null) {
+    const data = (parsed as Record<string, unknown>[]).slice(0, limit);
+    const headers = Object.keys(data[0]);
+    const rows = data.map((obj) => headers.map((h) => toCell(obj[h])));
+    return { title: ds.name, headers, rows };
+  }
+  // Non-array: show top-level keys as key/value table
+  const obj = parsed as Record<string, unknown>;
+  const headers = ["키", "값"];
+  const rows = Object.entries(obj)
+    .slice(0, limit)
+    .map(([k, v]) => [k, toCell(v)]);
+  return { title: ds.name, headers, rows };
+}
+
+async function previewMariaDb(ds: DataSource & { type: "mariadb" }, limit: number): Promise<PreviewResult> {
+  const cfg = ds.config;
+  const conn = await mysql.createConnection({
+    host: cfg.host,
+    port: cfg.port,
+    database: cfg.database,
+    user: cfg.user,
+    password: cfg.password,
+    connectTimeout: 10_000,
+  });
+  try {
+    // Pick the first table
+    const [tableRows] = await conn.query<mysql.RowDataPacket[]>(
+      `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? LIMIT 1`,
+      [cfg.database]
+    );
+    const tableName = tableRows[0]?.TABLE_NAME as string | undefined;
+    if (!tableName) return { title: ds.name, headers: [], rows: [] };
+
+    const [rows] = await conn.query<mysql.RowDataPacket[]>(
+      `SELECT * FROM \`${tableName}\` LIMIT ?`,
+      [limit]
+    );
+    if (rows.length === 0) return { title: `${ds.name} / ${tableName}`, headers: [], rows: [] };
+    const headers = Object.keys(rows[0]);
+    const dataRows = (rows as mysql.RowDataPacket[]).map((row) => headers.map((h) => String(row[h] ?? "")));
+    return { title: `${ds.name} / ${tableName}`, headers, rows: dataRows };
+  } finally {
+    await conn.end();
   }
 }

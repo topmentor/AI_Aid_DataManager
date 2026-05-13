@@ -1,86 +1,66 @@
-import type { DataSourceSchema } from "../../shared/types.js";
+export interface ColumnInfo {
+  name: string;
+  type: string;
+  samples?: string[];
+}
 
-export function buildSystemPrompt(schemas: DataSourceSchema[]): string {
-  const catalogText = schemas
-    .map((s) => {
-      if (s.type === "mariadb") {
-        const tables =
-          s.tables
-            ?.map(
-              (t) =>
-                `  Table: ${t.tableName}\n` +
-                t.columns
-                  .map(
-                    (c) =>
-                      `    - ${c.name} (${c.type}${c.nullable ? ", nullable" : ""})`
-                  )
-                  .join("\n")
-            )
-            .join("\n") ?? "";
-        return `### ${s.sourceName} (MariaDB)\n${tables}`;
-      }
-      if (s.type === "csv") {
-        const cols =
-          s.columns
-            ?.map((c) => `  - ${c.name} (example: ${c.sample ?? ""})`)
-            .join("\n") ?? "";
-        return `### ${s.sourceName} (CSV)\n${cols}`;
-      }
-      if (s.type === "json") {
-        const colStr = s.columns
-          ? s.columns.map((c) => `  - ${c.name} (${c.type})`).join("\n")
-          : "";
-        return `### ${s.sourceName} (JSON)\n${colStr}${s.structure ? `\nStructure sample:\n${s.structure}` : ""}`;
-      }
-      if (s.type === "jsonl") {
-        const colStr = s.columns
-          ? s.columns.map((c) => `  - ${c.name} (${c.type}, example: ${c.sample ?? ""})`).join("\n")
-          : "";
-        return `### ${s.sourceName} (JSONL — one JSON object per line)\n${colStr}`;
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n\n");
+export interface TableInfo {
+  tableName: string;
+  rowCount: number;
+  columns?: ColumnInfo[];
+}
 
-  return `You are a data analysis assistant. Your task is to write Python code that analyzes data and produces results.
+export interface SourceTableMap {
+  sourceName: string;
+  tables: TableInfo[];
+}
 
-## Workspace
+export function buildSystemPrompt(sourceMaps: SourceTableMap[]): string {
+  const tableList = sourceMaps.length > 0
+    ? sourceMaps.flatMap((m) =>
+        m.tables.map((t) => {
+          const header = `  - \`${t.tableName}\`  (${t.rowCount.toLocaleString()}행)  ← ${m.sourceName}`;
+          if (!t.columns || t.columns.length === 0) return header;
+          const cols = t.columns.map((c) => {
+            let colStr = `${c.name}(${c.type || "TEXT"})`;
+            if (c.samples && c.samples.length > 0) {
+              const vals = c.samples.slice(0, 6).map((s) => `"${s}"`).join(", ");
+              colStr += `[예시: ${vals}]`;
+            }
+            return colStr;
+          }).join(", ");
+          return `${header}\n    컬럼: ${cols}`;
+        })
+      ).join("\n")
+    : "  (등록된 소스 없음)";
 
-Your working directory contains:
-- \`data_helpers.py\`: functions to load data from configured sources (import this, don't use pymysql/sqlalchemy directly)
-- \`output/\`: write all results here
+  return `You are a SQLite SQL assistant. Read the user's request from request.md and write query.sql.
 
-## Output conventions
+## Output format (required)
 
-- Tables → \`df.to_csv("output/result.csv", index=False)\`
-- Charts → \`plt.savefig("output/chart.png", dpi=150, bbox_inches="tight"); plt.close()\`
-- HTML reports → write to \`output/report.html\`
-- JSON data → write to \`output/result.json\`
+Always write 2~3 SQL options separated by option markers:
 
-## Allowed Python libraries
+\`\`\`
+-- [옵션 1] 옵션 제목
+DROP TABLE IF EXISTS result;
+CREATE TABLE result AS
+SELECT ...;
 
-pandas, matplotlib, matplotlib.pyplot, json, csv, pathlib, datetime, math, statistics, collections, re
-
-## Prohibited
-
-Do NOT import: os, subprocess, socket, requests, urllib, pymysql, sqlalchemy, or any network/system library.
-data_helpers.py handles all data access — never connect to databases directly.
-Do NOT call eval(), exec(), or __import__().
-
-## Available data sources
-
-${catalogText || "(No data sources configured)"}
-
-## data_helpers.py usage
-
-\`\`\`python
-from data_helpers import load_csv_<name>, load_mariadb_<name>, load_json_<name>, load_jsonl_<name>
-# MariaDB: df = load_mariadb_<name>("SELECT col1, col2 FROM table LIMIT 1000")
-# CSV:     df = load_csv_<name>()
-# JSON:    data = load_json_<name>()
-# JSONL:   df = load_jsonl_<name>()   # returns a DataFrame (one row per line)
+-- [옵션 2] 옵션 제목
+DROP TABLE IF EXISTS result;
+CREATE TABLE result AS
+SELECT ...;
 \`\`\`
 
-Write your analysis code to \`analyze.py\`. First understand the schema, then write clean, focused analysis code.`;
+Each option must start with \`-- [옵션 N]\` on its own line.
+
+## Available tables
+
+${tableList}
+
+## Restrictions
+
+- No INSERT / UPDATE / DELETE / DROP on source tables
+- No ATTACH DATABASE or load_extension
+- Quote table names containing hyphens: \`"my-table"\``;
 }

@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld("aidclaude", {
     remove: (id: string) => ipcRenderer.invoke("catalog:remove", id),
     testConnection: (id: string) => ipcRenderer.invoke("catalog:testConnection", id),
     getSchema: (id: string) => ipcRenderer.invoke("catalog:getSchema", id),
+    previewData: (id: string, limit?: number) => ipcRenderer.invoke("catalog:previewData", id, limit),
   },
   // Claude
   claude: {
@@ -43,13 +44,38 @@ contextBridge.exposeInMainWorld("aidclaude", {
     create: (userRequest: string, sourceIds: string[]) =>
       ipcRenderer.invoke("jobs:create", userRequest, sourceIds),
     list: () => ipcRenderer.invoke("jobs:list"),
+    runAnalysis: (jobId: string) => ipcRenderer.invoke("jobs:runAnalysis", jobId),
+    runSql: (jobId: string, sql: string) => ipcRenderer.invoke("jobs:runSql", jobId, sql),
+    refreshSources: (jobId: string) => ipcRenderer.invoke("jobs:refreshSources", jobId),
+  },
+  // 임의 데이터를 CSV 소스로 저장
+  data: {
+    saveAsSource: (sourceName: string, headers: string[], rows: string[][]) =>
+      ipcRenderer.invoke("data:saveAsSource", sourceName, headers, rows),
+  },
+  // SQLite DB browser
+  db: {
+    listTables: (jobId: string) => ipcRenderer.invoke("db:listTables", jobId),
+    previewTable: (jobId: string, tableName: string, limit?: number) =>
+      ipcRenderer.invoke("db:previewTable", jobId, tableName, limit),
+    saveAsSource: (jobId: string, tableName: string, sourceName: string) =>
+      ipcRenderer.invoke("db:saveAsSource", jobId, tableName, sourceName),
   },
   // File utilities
   files: {
     open: (fp: string) => ipcRenderer.invoke("files:open", fp),
     readText: (fp: string) => ipcRenderer.invoke("files:readText", fp),
+    writeText: (fp: string, content: string) => ipcRenderer.invoke("files:writeText", fp, content),
+    readLines: (fp: string, count: number) => ipcRenderer.invoke("files:readLines", fp, count),
     readBase64: (fp: string) => ipcRenderer.invoke("files:readBase64", fp),
     copyToData: (srcPath: string) => ipcRenderer.invoke("files:copyToData", srcPath),
+  },
+  // Export (native save dialog + write)
+  export: {
+    saveText: (defaultName: string, filters: { name: string; extensions: string[] }[], content: string) =>
+      ipcRenderer.invoke("export:saveText", defaultName, filters, content),
+    saveBinary: (defaultName: string, filters: { name: string; extensions: string[] }[], base64: string) =>
+      ipcRenderer.invoke("export:saveBinary", defaultName, filters, base64),
   },
   // Native dialogs
   dialog: {

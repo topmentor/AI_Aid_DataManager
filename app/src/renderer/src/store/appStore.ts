@@ -5,7 +5,6 @@ import type {
   DataSourceSchema,
   ClaudeEnvProbe,
   AppSettings,
-  ClaudeStreamEvent,
 } from "../../../shared/types";
 
 export type ToolCallView = {
@@ -25,6 +24,20 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export type CenterTabSourceRef =
+  | { kind: "catalog"; sourceId: string }
+  | { kind: "db"; jobId: string; tableName: string };
+
+export interface CenterTab {
+  id: string;
+  title: string;
+  headers: string[];
+  rows: string[][];
+  view: "table" | "chart" | "map";
+  sourceRef?: CenterTabSourceRef;
+  fullyLoaded?: boolean;
+}
+
 interface AppState {
   // Navigation
   view: "start" | "main";
@@ -41,6 +54,9 @@ interface AppState {
   chatMessages: Map<string, ChatMessage[]>;
   // Code in Monaco
   activeAnalyzeCode: string;
+  // Center panel tabs (VSCode-style)
+  centerTabs: CenterTab[];
+  activeCenterTabId: string | null;
   // Streaming state
   streaming: { jobId: string; assistantMessageId: string } | null;
   // Actions
@@ -55,6 +71,11 @@ interface AppState {
   setActiveJob: (id: string | null) => void;
   addChatMessage: (jobId: string, msg: Omit<ChatMessage, "id" | "toolCalls" | "status"> & Partial<Pick<ChatMessage, "id" | "toolCalls" | "status">>) => void;
   setActiveCode: (code: string) => void;
+  // Center tab actions
+  openCenterTab: (tab: Omit<CenterTab, "view">) => void;
+  closeCenterTab: (id: string) => void;
+  setActiveCenterTab: (id: string) => void;
+  setCenterTabView: (id: string, view: "table" | "chart" | "map") => void;
   // Streaming actions
   ensureAssistantMessage: (id: string) => void;
   appendAssistantText: (id: string, text: string) => void;
@@ -74,6 +95,8 @@ export const useAppStore = create<AppState>((set) => ({
   activeJobId: null,
   chatMessages: new Map(),
   activeAnalyzeCode: "",
+  centerTabs: [],
+  activeCenterTabId: null,
   streaming: null,
 
   setView: (v) => set({ view: v }),
@@ -107,6 +130,49 @@ export const useAppStore = create<AppState>((set) => ({
       return { chatMessages };
     }),
   setActiveCode: (code) => set({ activeAnalyzeCode: code }),
+
+  // Center tab actions
+  openCenterTab: (tab) =>
+    set((state) => {
+      const existing = state.centerTabs.find((t) => t.id === tab.id);
+      if (existing) {
+        const centerTabs = state.centerTabs.map((t) =>
+          t.id === tab.id
+            ? {
+                ...t,
+                title: tab.title,
+                headers: tab.headers,
+                rows: tab.rows,
+                sourceRef: tab.sourceRef ?? t.sourceRef,
+                fullyLoaded: tab.fullyLoaded,
+              }
+            : t
+        );
+        return { centerTabs, activeCenterTabId: tab.id };
+      }
+      const newTab: CenterTab = { ...tab, view: "table" };
+      return {
+        centerTabs: [...state.centerTabs, newTab],
+        activeCenterTabId: tab.id,
+      };
+    }),
+  closeCenterTab: (id) =>
+    set((state) => {
+      const centerTabs = state.centerTabs.filter((t) => t.id !== id);
+      let activeCenterTabId = state.activeCenterTabId;
+      if (activeCenterTabId === id) {
+        const idx = state.centerTabs.findIndex((t) => t.id === id);
+        activeCenterTabId = centerTabs[Math.max(0, idx - 1)]?.id ?? null;
+      }
+      return { centerTabs, activeCenterTabId };
+    }),
+  setActiveCenterTab: (id) => set({ activeCenterTabId: id }),
+  setCenterTabView: (id, view) =>
+    set((state) => ({
+      centerTabs: state.centerTabs.map((t) =>
+        t.id === id ? { ...t, view } : t
+      ),
+    })),
 
   ensureAssistantMessage: (id) =>
     set((s) => {

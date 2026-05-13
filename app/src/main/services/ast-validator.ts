@@ -1,55 +1,66 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 
 const ALLOWED_IMPORTS = [
-  "pandas", "matplotlib", "matplotlib.pyplot", "json", "csv",
+  "pandas", "numpy", "json", "csv",
   "pathlib", "datetime", "math", "statistics", "collections",
   "functools", "itertools", "re", "typing", "data_helpers",
-  "os.path",  // os.path is safe (just path manipulation, no exec)
+  "sqlite3", "os.path",
 ];
 
-// Python AST validation script — spawned as `python -c <script>`
-// Reads code from stdin, prints JSON result to stdout
-function buildValidatorScript(allowedImports: string[]): string {
+// Python AST validation script — writes code to a temp file to avoid stdin encoding issues
+function buildValidatorScript(allowedImports: string[], codeFile: string): string {
   const allowedJson = JSON.stringify(allowedImports);
-  return `
+  const codeFileEscaped = codeFile.replace(/\\/g, "\\\\");
+  return `# -*- coding: utf-8 -*-
 import ast, sys, json
-code = sys.stdin.read()
+
+try:
+    with open(${JSON.stringify(codeFileEscaped)}, encoding="utf-8") as f:
+        code = f.read()
+except Exception as e:
+    print(json.dumps({"ok": False, "errors": [f"Read error: {e}"]}))
+    sys.exit(0)
+
 try:
     tree = ast.parse(code)
 except SyntaxError as e:
     print(json.dumps({"ok": False, "errors": [f"SyntaxError: {e}"]}))
     sys.exit(0)
+except Exception as e:
+    print(json.dumps({"ok": False, "errors": [f"ParseError: {e}"]}))
+    sys.exit(0)
 
-allowed = set(${allowedJson})
-errors = []
+_allowed = set(${allowedJson})
+_errors = []
 
-class Checker(ast.NodeVisitor):
+class _Checker(ast.NodeVisitor):
     def visit_Import(self, node):
         for alias in node.names:
             base = alias.name.split(".")[0]
-            if base not in allowed and alias.name not in allowed:
-                errors.append(f"Blocked import: {alias.name}")
+            if base not in _allowed and alias.name not in _allowed:
+                _errors.append(f"Blocked import: {alias.name}")
         self.generic_visit(node)
     def visit_ImportFrom(self, node):
         module = node.module or ""
         base = module.split(".")[0]
-        if base not in allowed and module not in allowed:
-            errors.append(f"Blocked import from: {module}")
+        if base not in _allowed and module not in _allowed:
+            _errors.append(f"Blocked import from: {module}")
         self.generic_visit(node)
     def visit_Call(self, node):
         if isinstance(node.func, ast.Name):
             if node.func.id in ("eval", "exec", "__import__", "compile"):
-                errors.append(f"Blocked call: {node.func.id}()")
-            elif node.func.id == "open":
-                # Block open() with absolute paths only
-                if node.args and isinstance(node.args[0], ast.Constant):
-                    p = str(node.args[0].value)
-                    if p.startswith("/") or (len(p) > 2 and p[1] == ":"):
-                        errors.append(f"Blocked open() with absolute path: {p}")
+                _errors.append(f"Blocked call: {node.func.id}()")
         self.generic_visit(node)
 
-Checker().visit(tree)
-print(json.dumps({"ok": len(errors) == 0, "errors": errors}))
+try:
+    _Checker().visit(tree)
+except Exception as e:
+    _errors.append(f"Checker error: {e}")
+
+print(json.dumps({"ok": len(_errors) == 0, "errors": _errors}))
 `;
 }
 
@@ -62,36 +73,46 @@ export async function validatePython(
   code: string,
   pythonBin = "python"
 ): Promise<ValidationResult> {
-  const script = buildValidatorScript(ALLOWED_IMPORTS);
+  const ts = Date.now();
+  const tmpCode   = path.join(os.tmpdir(), `aidclaude_code_${ts}.py`);
+  const tmpScript = path.join(os.tmpdir(), `aidclaude_validator_${ts}.py`);
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(pythonBin, ["-c", script], {
-      stdio: ["pipe", "pipe", "pipe"],
-      shell: process.platform === "win32",
+  try {
+    await fs.writeFile(tmpCode, code, "utf-8");
+    const script = buildValidatorScript(ALLOWED_IMPORTS, tmpCode);
+    await fs.writeFile(tmpScript, script, "utf-8");
+
+    return await new Promise((resolve, reject) => {
+      const child = spawn(pythonBin, [tmpScript], {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
+      });
+
+      let stdout = "";
+      let stderr = "";
+
+      child.stdout.on("data", (b: Buffer) => (stdout += b.toString("utf-8")));
+      child.stderr.on("data", (b: Buffer) => (stderr += b.toString("utf-8")));
+
+      child.on("exit", () => {
+        try {
+          resolve(JSON.parse(stdout) as ValidationResult);
+        } catch {
+          resolve({
+            ok: false,
+            errors: [`Validator error: ${(stderr || stdout).slice(0, 500)}`],
+          });
+        }
+      });
+
+      child.on("error", (err) => {
+        reject(new Error(`Failed to spawn Python (${pythonBin}): ${err.message}`));
+      });
     });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on("data", (b: Buffer) => (stdout += b.toString()));
-    child.stderr.on("data", (b: Buffer) => (stderr += b.toString()));
-
-    child.stdin.write(code, "utf-8");
-    child.stdin.end();
-
-    child.on("exit", () => {
-      try {
-        resolve(JSON.parse(stdout) as ValidationResult);
-      } catch {
-        resolve({
-          ok: false,
-          errors: [`Validator error: ${stderr || stdout || "unknown"}`],
-        });
-      }
-    });
-
-    child.on("error", (err) => {
-      reject(new Error(`Failed to spawn Python (${pythonBin}): ${err.message}`));
-    });
-  });
+  } finally {
+    await Promise.all([
+      fs.unlink(tmpCode).catch(() => undefined),
+      fs.unlink(tmpScript).catch(() => undefined),
+    ]);
+  }
 }

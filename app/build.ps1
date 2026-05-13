@@ -1,2 +1,1 @@
-Set-Location $PSScriptRoot
-npm run build
+& (Join-Path $PSScriptRoot "..\setup.ps1") -Build

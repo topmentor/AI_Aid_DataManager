@@ -11,6 +11,78 @@ const MARKDOWN_COMPONENTS = {
   ),
 };
 
+type MessagePart =
+  | { type: "text"; content: string }
+  | { type: "options"; items: string[] };
+
+function parseMessageParts(text: string): MessagePart[] {
+  const parts: MessagePart[] = [];
+  const regex = /<options>([\s\S]*?)<\/options>/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const before = text.slice(lastIndex, match.index).trim();
+    if (before) parts.push({ type: "text", content: before });
+    const items = match[1]
+      .trim()
+      .split("\n")
+      .map((l) => l.replace(/^\d+[.)]\s*/, "").trim())
+      .filter((l) => l.length > 0);
+    if (items.length > 0) parts.push({ type: "options", items });
+    lastIndex = match.index + match[0].length;
+  }
+  const after = text.slice(lastIndex).trim();
+  if (after) parts.push({ type: "text", content: after });
+  return parts.length > 0 ? parts : [{ type: "text", content: text }];
+}
+
+type ProbeStatus = "idle" | "checking" | "ok" | "error";
+
+function ClaudeConnectBar() {
+  const { probe, setProbe } = useAppStore();
+  const [status, setStatus] = useState<ProbeStatus>(probe ? (probe.authenticated ? "ok" : "error") : "idle");
+
+  async function handleProbe() {
+    setStatus("checking");
+    try {
+      const result = await window.aidclaude.claude.probe();
+      setProbe(result);
+      setStatus(result.authenticated ? "ok" : "error");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  useEffect(() => {
+    if (status === "idle") handleProbe();
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const label =
+    status === "checking" ? "확인 중…" :
+    status === "ok"       ? `✓ Claude ${probe?.version ?? ""}` :
+    status === "error"    ? `✗ ${probe?.error ?? "연결 실패"}` :
+    "Claude 연결 확인";
+
+  const barClass =
+    status === "ok"    ? "claude-bar claude-bar-ok" :
+    status === "error" ? "claude-bar claude-bar-error" :
+    "claude-bar";
+
+  return (
+    <div className={barClass}>
+      <span className="claude-bar-label">{label}</span>
+      <button
+        type="button"
+        className="claude-bar-btn"
+        onClick={handleProbe}
+        disabled={status === "checking"}
+      >
+        {status === "checking" ? "…" : status === "ok" ? "재확인" : "연결 확인"}
+      </button>
+    </div>
+  );
+}
+
 export function ChatPanel() {
   const {
     sources,
@@ -32,7 +104,6 @@ export function ChatPanel() {
 
   const messages = activeJobId ? (chatMessages.get(activeJobId) ?? []) : [];
 
-  // Auto-scroll to bottom
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -62,10 +133,7 @@ export function ChatPanel() {
     ensureAssistantMessage(assistantId);
     setStreaming({ jobId, assistantMessageId: assistantId });
 
-    // Fire-and-forget — completion signaled by claude:done / claude:error
-    window.aidclaude.claude.sendMessage(jobId, text).catch(() => {
-      // Swallow IPC-level errors; claude:error event handles messaging to the user
-    });
+    window.aidclaude.claude.sendMessage(jobId, text).catch(() => {});
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -79,17 +147,35 @@ export function ChatPanel() {
     if (activeJobId) window.aidclaude.claude.abort(activeJobId);
   }
 
+  async function handleOptionSelect(text: string) {
+    const jobId = activeJobId;
+    if (!jobId || streaming) return;
+    addChatMessage(jobId, {
+      role: "user",
+      text,
+      status: "done",
+      toolCalls: [],
+      timestamp: new Date().toISOString(),
+    });
+    const assistantId = crypto.randomUUID();
+    ensureAssistantMessage(assistantId);
+    setStreaming({ jobId, assistantMessageId: assistantId });
+    window.aidclaude.claude.sendMessage(jobId, text).catch(() => {});
+  }
+
   function handleNewJob() {
     setActiveJob(null);
     setActiveCode("");
     setInput("");
   }
 
-  // Job history tabs
   const recentJobs = [...jobs].reverse().slice(0, 10);
 
   return (
     <div className="chat-panel">
+      {/* Claude connection bar */}
+      <ClaudeConnectBar />
+
       {/* Job tabs */}
       <div className="chat-tabs">
         <button
@@ -104,7 +190,11 @@ export function ChatPanel() {
             type="button"
             key={j.id}
             className={`chat-tab-btn chat-tab-btn-job${j.id === activeJobId ? " chat-tab-btn-active" : ""}`}
-            onClick={() => setActiveJob(j.id)}
+            onClick={() => {
+              setActiveJob(j.id);
+              // 탭 전환 시 data.db + CLAUDE.md를 최신 소스 카탈로그로 갱신 (background)
+              window.aidclaude.jobs.refreshSources(j.id).catch(() => {});
+            }}
             title={j.userRequest}
           >
             {j.userRequest.slice(0, 20)}…
@@ -138,12 +228,34 @@ export function ChatPanel() {
                     }`}
                   />
                   <div className="cld-msg-text cld-md">
-                    {m.text ? (
+                    {!m.text ? (
+                      <span className="cld-thinking">응답 생성 중…</span>
+                    ) : m.status === "streaming" ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
                         {m.text}
                       </ReactMarkdown>
                     ) : (
-                      <span className="cld-thinking">응답 생성 중…</span>
+                      parseMessageParts(m.text).map((part, pi) =>
+                        part.type === "text" ? (
+                          <ReactMarkdown key={pi} remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                            {part.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <div key={pi} className="cld-options">
+                            {part.items.map((item, ii) => (
+                              <button
+                                key={ii}
+                                type="button"
+                                className="cld-option-btn"
+                                disabled={!!streaming}
+                                onClick={() => handleOptionSelect(item)}
+                              >
+                                {item}
+                              </button>
+                            ))}
+                          </div>
+                        )
+                      )
                     )}
                   </div>
                 </div>

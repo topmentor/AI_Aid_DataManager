@@ -28,9 +28,10 @@ export async function* queryClaude(opts: ClaudeQueryOpts): AsyncGenerator<unknow
     "-p",
     "--output-format", "stream-json",
     "--verbose",
+    "--model", "opus",
     "--permission-mode", permissionMode,
   ];
-  if (allowedTools?.length) args.push("--allowed-tools", ...allowedTools);
+  if (allowedTools?.length) args.push("--allowed-tools", allowedTools.join(","));
   if (systemPromptAppend) args.push("--append-system-prompt", systemPromptAppend);
   if (resumeSessionId) args.push("--resume", resumeSessionId);
   args.push("--", prompt);
