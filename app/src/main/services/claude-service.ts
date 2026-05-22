@@ -6,6 +6,7 @@ import type { BrowserWindow } from "electron";
 import { queryClaude } from "./claude-bridge.js";
 import { getSettings } from "./settings-service.js";
 import { getJob, updateJob, refreshJobSources, updateClaudeMd } from "./job-service.js";
+import { backupQuerySql, backupResultTable } from "./backup-service.js";
 
 // One AbortController per active job
 const abortControllers = new Map<string, AbortController>();
@@ -62,6 +63,9 @@ export async function sendMessage(
 
   // 매 메시지 전, 현재 카탈로그 소스를 data.db에 반영하고 CLAUDE.md를 최신 스키마로 재생성
   await refreshJobSources(jobId);
+
+  // 새 쿼리 생성 전 기존 query.sql 백업
+  await backupQuerySql(job.workspaceDir);
 
   // 사용자 메시지를 파일로 저장: Windows cmd.exe 한국어 인코딩 문제 방지
   // Claude는 파일에서 요청을 읽으므로 인코딩 손상 없이 전달됨
@@ -125,6 +129,7 @@ export async function sendMessage(
         const dbPath = path.join(job.workspaceDir, "data.db");
         const db = new Database(dbPath);
         try {
+          backupResultTable(db);
           db.exec(sql);
           await updateJob(jobId, { status: "done" });
         } catch (sqlErr) {

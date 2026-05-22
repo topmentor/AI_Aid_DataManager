@@ -27,7 +27,7 @@ async function inspectMariaDb(ds: DataSource & { type: "mariadb" }): Promise<Dat
   });
 
   try {
-    const [rows] = await conn.query<mysql.RowDataPacket[]>(
+    const [colRows] = await conn.query<mysql.RowDataPacket[]>(
       `SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, IS_NULLABLE
        FROM information_schema.COLUMNS
        WHERE TABLE_SCHEMA = ?
@@ -35,8 +35,17 @@ async function inspectMariaDb(ds: DataSource & { type: "mariadb" }): Promise<Dat
       [cfg.database]
     );
 
+    const [cntRows] = await conn.query<mysql.RowDataPacket[]>(
+      `SELECT TABLE_NAME, TABLE_ROWS
+       FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'`,
+      [cfg.database]
+    );
+    const rowCountMap = new Map<string, number>();
+    for (const r of cntRows) rowCountMap.set(r.TABLE_NAME as string, Number(r.TABLE_ROWS ?? 0));
+
     const tableMap = new Map<string, ColumnSchema[]>();
-    for (const r of rows) {
+    for (const r of colRows) {
       if (!tableMap.has(r.TABLE_NAME)) tableMap.set(r.TABLE_NAME, []);
       tableMap.get(r.TABLE_NAME)!.push({
         name: r.COLUMN_NAME,
@@ -47,15 +56,10 @@ async function inspectMariaDb(ds: DataSource & { type: "mariadb" }): Promise<Dat
 
     const tables: TableSchema[] = [];
     for (const [tableName, columns] of tableMap) {
-      tables.push({ tableName, columns });
+      tables.push({ tableName, columns, rowCount: rowCountMap.get(tableName) });
     }
 
-    return {
-      sourceId: ds.id,
-      sourceName: ds.name,
-      type: "mariadb",
-      tables,
-    };
+    return { sourceId: ds.id, sourceName: ds.name, type: "mariadb", tables };
   } finally {
     await conn.end();
   }
@@ -65,18 +69,24 @@ async function inspectCsv(ds: DataSource & { type: "csv" }): Promise<DataSourceS
   const cfg = ds.config;
   const raw = await fs.readFile(cfg.filePath, "utf-8");
 
-  const { data, meta } = Papa.parse<Record<string, string>>(raw, {
+  // sample용 (5행)
+  const { data: sample, meta } = Papa.parse<Record<string, string>>(raw, {
     header: true,
     preview: 5,
     skipEmptyLines: true,
-    delimiter: cfg.delimiter,  // "" means auto-detect (PapaParse default)
+    delimiter: cfg.delimiter,
+  });
+  // 전체 행 수 계산 (헤더 제외)
+  const { data: allData } = Papa.parse<Record<string, string>>(raw, {
+    header: true,
+    skipEmptyLines: true,
+    delimiter: cfg.delimiter,
   });
 
-  const sample = data as Record<string, string>[];
   const columns: ColumnSchema[] = (meta.fields ?? []).map((name) => ({
     name,
     type: "string",
-    sample: sample[0]?.[name] ?? "",
+    sample: (sample as Record<string, string>[])[0]?.[name] ?? "",
   }));
 
   return {
@@ -84,6 +94,7 @@ async function inspectCsv(ds: DataSource & { type: "csv" }): Promise<DataSourceS
     sourceName: ds.name,
     type: "csv",
     columns,
+    rowCount: allData.length,
   };
 }
 
@@ -92,7 +103,6 @@ async function inspectJson(ds: DataSource & { type: "json" }): Promise<DataSourc
   const raw = await fs.readFile(cfg.filePath, "utf-8");
   let parsed: unknown = JSON.parse(raw);
 
-  // Navigate to rootPath if specified (e.g. "data.items")
   if (cfg.rootPath) {
     for (const key of cfg.rootPath.split(".")) {
       parsed = (parsed as Record<string, unknown>)[key];
@@ -102,11 +112,10 @@ async function inspectJson(ds: DataSource & { type: "json" }): Promise<DataSourc
     }
   }
 
-  // Get structure sample (first item if array, whole object if not)
   const sample = Array.isArray(parsed) ? parsed[0] : parsed;
   const structure = JSON.stringify(sample ?? null, null, 2).slice(0, 800);
+  const rowCount = Array.isArray(parsed) ? parsed.length : undefined;
 
-  // If the root is an array of objects, extract flat column names
   let columns: ColumnSchema[] | undefined;
   if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null) {
     const first = parsed[0] as Record<string, unknown>;
@@ -117,23 +126,18 @@ async function inspectJson(ds: DataSource & { type: "json" }): Promise<DataSourc
     }));
   }
 
-  return {
-    sourceId: ds.id,
-    sourceName: ds.name,
-    type: "json",
-    columns,
-    structure,
-  };
+  return { sourceId: ds.id, sourceName: ds.name, type: "json", columns, structure, rowCount };
 }
 
 async function inspectJsonl(ds: DataSource & { type: "jsonl" }): Promise<DataSourceSchema> {
   const cfg = ds.config;
   const raw = await fs.readFile(cfg.filePath, "utf-8");
-  const lines = raw.trim().split("\n").filter(Boolean).slice(0, 5);
-  if (lines.length === 0) {
-    return { sourceId: ds.id, sourceName: ds.name, type: "jsonl" };
+  const allLines = raw.trim().split("\n").filter(Boolean);
+  const rowCount = allLines.length;
+  if (allLines.length === 0) {
+    return { sourceId: ds.id, sourceName: ds.name, type: "jsonl", rowCount: 0 };
   }
-  const first = JSON.parse(lines[0]);
+  const first = JSON.parse(allLines[0]);
   const columns: ColumnSchema[] | undefined =
     typeof first === "object" && first !== null
       ? Object.keys(first as Record<string, unknown>).map((name) => ({
@@ -142,7 +146,7 @@ async function inspectJsonl(ds: DataSource & { type: "jsonl" }): Promise<DataSou
           sample: String((first as Record<string, unknown>)[name] ?? ""),
         }))
       : undefined;
-  return { sourceId: ds.id, sourceName: ds.name, type: "jsonl", columns };
+  return { sourceId: ds.id, sourceName: ds.name, type: "jsonl", columns, rowCount };
 }
 
 async function inspectShapefile(ds: DataSource & { type: "shapefile" }): Promise<DataSourceSchema> {
@@ -150,10 +154,18 @@ async function inspectShapefile(ds: DataSource & { type: "shapefile" }): Promise
   const shpPath = ds.config.shpPath;
   const dbfPath = shpPath.replace(/\.shp$/i, ".dbf");
   const encoding = ds.config.encoding ?? "euc-kr";
+
+  // Read record count from DBF header bytes 4-7 (little-endian uint32)
+  let rowCount: number | undefined;
+  try {
+    const dbfBuf = await fs.readFile(dbfPath);
+    rowCount = dbfBuf.readUInt32LE(4);
+  } catch { /* ignore if DBF unreadable */ }
+
   const source = await shp.open(shpPath, dbfPath, { encoding });
   const result = await source.read();
   if (result.done) {
-    return { sourceId: ds.id, sourceName: ds.name, type: "shapefile", columns: [{ name: "x", type: "number" }, { name: "y", type: "number" }] };
+    return { sourceId: ds.id, sourceName: ds.name, type: "shapefile", columns: [{ name: "x", type: "number" }, { name: "y", type: "number" }], rowCount };
   }
   const feature = result.value;
   const props = (feature.properties ?? {}) as Record<string, unknown>;
@@ -168,7 +180,7 @@ async function inspectShapefile(ds: DataSource & { type: "shapefile" }): Promise
     { name: "x", type: "number", sample: String(coords[0] ?? "") },
     { name: "y", type: "number", sample: String(coords[1] ?? "") },
   ];
-  return { sourceId: ds.id, sourceName: ds.name, type: "shapefile", columns };
+  return { sourceId: ds.id, sourceName: ds.name, type: "shapefile", columns, rowCount };
 }
 
 export async function inspectSchema(ds: DataSource): Promise<DataSourceSchema> {

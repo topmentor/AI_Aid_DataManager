@@ -10,6 +10,8 @@ import type { AppSettings, DataSource } from "../shared/types.js";
 import { loadJobs, createJob, getJob, updateJob, refreshJobSources, updateClaudeMd } from "./services/job-service.js";
 import Database from "better-sqlite3";
 import { sendMessage as claudeSendMessage, abortJob, parseSqlOptions } from "./services/claude-service.js";
+import { backupResultTable, listQueryHistory } from "./services/backup-service.js";
+import { toTableName } from "./services/sqlite-loader.js";
 
 // Suppress harmless "Request Autofill.enable failed" DevTools Protocol noise
 app.commandLine.appendSwitch("disable-features", "AutofillServerCommunication");
@@ -124,6 +126,7 @@ ipcMain.handle("jobs:runAnalysis", async (_e, jobId: string) => {
   const dbPath = path.join(job.workspaceDir, "data.db");
   const db = new Database(dbPath);
   try {
+    backupResultTable(db);
     db.exec(sql);
     await updateJob(jobId, { status: "done" });
     win?.webContents.send("job:update", getJob(jobId));
@@ -150,6 +153,7 @@ ipcMain.handle("jobs:runSql", async (_e, jobId: string, sql: string) => {
   const dbPath = path.join(job.workspaceDir, "data.db");
   const db = new Database(dbPath);
   try {
+    backupResultTable(db);
     db.exec(sql);
     await updateJob(jobId, { status: "done" });
     win?.webContents.send("job:update", getJob(jobId));
@@ -163,6 +167,75 @@ ipcMain.handle("jobs:runSql", async (_e, jobId: string, sql: string) => {
   } finally {
     db.close();
   }
+});
+
+// Return list of backed-up query history files
+ipcMain.handle("jobs:listQueryHistory", async (_e, jobId: string) => {
+  const job = getJob(jobId);
+  if (!job) return [];
+  return listQueryHistory(job.workspaceDir);
+});
+
+// 보존 대상 판별 헬퍼: result + 카탈로그 소스 테이블만 유지, 나머지는 고아
+function buildOrphanFilter(sources: import("../shared/types.js").DataSource[]) {
+  const knownExact = new Set<string>();
+  const knownPrefixes: string[] = [];
+  for (const s of sources) {
+    const base = toTableName(s.name);
+    if (s.type === "mariadb") knownPrefixes.push(base + "_");
+    else knownExact.add(base);
+  }
+  return (t: string) =>
+    t !== "result" &&
+    !/^result_bak_\d+$/.test(t) &&
+    !knownExact.has(t) &&
+    !knownPrefixes.some((p) => t.startsWith(p));
+}
+
+// 모든 작업 DB에서 고아 테이블 목록 반환 (작업별 그룹)
+ipcMain.handle("jobs:listAllOrphanTables", async () => {
+  const allJobs = await loadJobs();
+  const sources = await listSources();
+  const isOrphan = buildOrphanFilter(sources);
+  const result: { jobId: string; jobLabel: string; tables: string[] }[] = [];
+
+  for (const job of allJobs) {
+    const dbPath = path.join(job.workspaceDir, "data.db");
+    try { await fs.access(dbPath); } catch { continue; }
+    const db = new Database(dbPath, { readonly: true });
+    try {
+      const orphans = (db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+      ).all() as { name: string }[]).map((r) => r.name).filter(isOrphan);
+      if (orphans.length > 0)
+        result.push({ jobId: job.id, jobLabel: job.userRequest.slice(0, 40), tables: orphans });
+    } finally { db.close(); }
+  }
+  return result;
+});
+
+// 모든 작업 DB에서 고아 테이블 일괄 삭제
+ipcMain.handle("jobs:dropAllOrphanTables", async () => {
+  const allJobs = await loadJobs();
+  const sources = await listSources();
+  const isOrphan = buildOrphanFilter(sources);
+  let dropped = 0;
+
+  for (const job of allJobs) {
+    const dbPath = path.join(job.workspaceDir, "data.db");
+    try { await fs.access(dbPath); } catch { continue; }
+    const db = new Database(dbPath);
+    try {
+      const orphans = (db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+      ).all() as { name: string }[]).map((r) => r.name).filter(isOrphan);
+      for (const t of orphans)
+        db.exec(`DROP TABLE IF EXISTS "${t.replace(/"/g, '""')}"`);
+      dropped += orphans.length;
+      if (orphans.length > 0) await updateClaudeMd(job.id).catch(() => {});
+    } finally { db.close(); }
+  }
+  return { ok: true, dropped };
 });
 
 // Return parsed SQL options from query.sql (no auto-execution)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Editor from "@monaco-editor/react";
 import { useAppStore } from "../store/appStore";
 
@@ -37,10 +37,25 @@ export function CodePanel() {
   const [runningOptionIdx, setRunningOptionIdx] = useState<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [histFiles, setHistFiles] = useState<string[]>([]);
+  const [histOpen, setHistOpen] = useState(false);
+  const histRef = useRef<HTMLDivElement>(null);
+
+
   const sqlOptions = useMemo(
     () => parseSqlOptions(activeAnalyzeCode ?? ""),
     [activeAnalyzeCode]
   );
+
+  // 히스토리 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!histOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (!histRef.current?.contains(e.target as Node)) setHistOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [histOpen]);
 
   // 작업 전환 시 query.sql 로드 (디스크에서)
   useEffect(() => {
@@ -76,6 +91,28 @@ export function CodePanel() {
     // 자동 저장: 1초 후 디바운스
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => saveCode(code), 1000);
+  }
+
+  const handleOpenHistory = useCallback(async () => {
+    if (!activeJobId) return;
+    const files = await window.aidclaude.jobs.listQueryHistory(activeJobId);
+    setHistFiles(files);
+    setHistOpen(true);
+  }, [activeJobId]);
+
+  async function handleLoadHistory(filename: string) {
+    if (!activeJobId) return;
+    const job = useAppStore.getState().jobs.find((j) => j.id === activeJobId);
+    if (!job) return;
+    const histPath = job.workspaceDir.replace(/\\/g, "/") + "/history/" + filename;
+    const code = await window.aidclaude.files.readText(histPath);
+    if (code !== null) {
+      useAppStore.getState().setActiveCode(code);
+      setSaved(false);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => saveCode(code), 1000);
+    }
+    setHistOpen(false);
   }
 
   async function handleRun() {
@@ -122,6 +159,35 @@ export function CodePanel() {
           {!saved && <span className="code-panel-unsaved"> ●</span>}
         </span>
         <div className="code-panel-actions">
+          {/* 이전 쿼리 히스토리 드롭다운 */}
+          <div ref={histRef} className="code-panel-hist-wrap">
+            <button
+              type="button"
+              className="code-panel-hist-btn"
+              disabled={!activeJobId}
+              onClick={handleOpenHistory}
+            >
+              이전 쿼리 ▾
+            </button>
+            {histOpen && (
+              <div className="code-panel-hist-dropdown">
+                {histFiles.length === 0 ? (
+                  <span className="code-panel-hist-empty">이전 쿼리 없음</span>
+                ) : (
+                  histFiles.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      className="code-panel-hist-item"
+                      onClick={() => handleLoadHistory(f)}
+                    >
+                      {f}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           {runError && (
             <span className="code-panel-error" title={runError}>
               {runError.slice(0, 60)}{runError.length > 60 ? "…" : ""}
@@ -186,6 +252,7 @@ export function CodePanel() {
           }}
         />
       </div>
+
     </div>
   );
 }

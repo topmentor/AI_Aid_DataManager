@@ -34,6 +34,9 @@ declare global {
         runSql(jobId: string, sql: string): Promise<{ ok: boolean; error?: string }>;
         refreshSources(jobId: string): Promise<void>;
         getSqlOptions(jobId: string): Promise<{ title: string; sql: string }[]>;
+        listQueryHistory(jobId: string): Promise<string[]>;
+        listAllOrphanTables(): Promise<{ jobId: string; jobLabel: string; tables: string[] }[]>;
+        dropAllOrphanTables(): Promise<{ ok: boolean; dropped: number }>;
       };
       data: {
         saveAsSource(sourceName: string, headers: string[], rows: string[][]): Promise<{ ok: boolean; source?: DataSource; error?: string }>;

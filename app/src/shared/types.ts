@@ -28,7 +28,7 @@ export interface ColumnSchema {
   nullable?: boolean;
   sample?: string;
 }
-export interface TableSchema { tableName: string; columns: ColumnSchema[]; }
+export interface TableSchema { tableName: string; columns: ColumnSchema[]; rowCount?: number; }
 export interface DataSourceSchema {
   sourceId: string;
   sourceName: string;
@@ -36,6 +36,7 @@ export interface DataSourceSchema {
   tables?: TableSchema[];      // mariadb
   columns?: ColumnSchema[];    // csv / json / jsonl (flat)
   structure?: string;          // json (nested description)
+  rowCount?: number;           // csv / json / jsonl / shapefile
 }
 
 export type JobStatus = "idle" | "planning" | "running" | "done" | "error";

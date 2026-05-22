@@ -162,7 +162,12 @@ function SchemaContent({ schema }: { schema: DataSourceSchema }) {
       <>
         {schema.tables.map((t) => (
           <div key={t.tableName} className="sp-table">
-            <div className="sp-table-name">{t.tableName}</div>
+            <div className="sp-table-name">
+              {t.tableName}
+              {t.rowCount != null && (
+                <span className="sp-row-count">{t.rowCount.toLocaleString()}행</span>
+              )}
+            </div>
             {t.columns.map((c) => (
               <div key={c.name} className="sp-col">
                 <span className="sp-col-name">{c.name}</span>
@@ -177,6 +182,9 @@ function SchemaContent({ schema }: { schema: DataSourceSchema }) {
   if (schema.columns) {
     return (
       <>
+        {schema.rowCount != null && (
+          <div className="sp-row-count-header">{schema.rowCount.toLocaleString()}행</div>
+        )}
         {schema.columns.map((c) => (
           <div key={c.name} className="sp-col">
             <span className="sp-col-name">{c.name}</span>
@@ -189,7 +197,14 @@ function SchemaContent({ schema }: { schema: DataSourceSchema }) {
     );
   }
   if (schema.structure) {
-    return <pre className="sp-structure">{schema.structure}</pre>;
+    return (
+      <>
+        {schema.rowCount != null && (
+          <div className="sp-row-count-header">{schema.rowCount.toLocaleString()}행</div>
+        )}
+        <pre className="sp-structure">{schema.structure}</pre>
+      </>
+    );
   }
   return <div className="sp-empty">스키마 없음</div>;
 }
@@ -276,6 +291,13 @@ export function DataSourcePanel() {
   const [schemaPopup, setSchemaPopup] = useState<{ sourceId: string; anchorRect: DOMRect } | null>(null);
   const [delimDialog, setDelimDialog] = useState<{ anchorRect: DOMRect } | null>(null);
 
+  // DB 정리 모달 상태
+  const [cleanModalOpen, setCleanModalOpen] = useState(false);
+  const [cleanStep, setCleanStep] = useState<"confirm" | "list">("confirm");
+  const [orphanGroups, setOrphanGroups] = useState<{ jobId: string; jobLabel: string; tables: string[] }[]>([]);
+  const [cleanBusy, setCleanBusy] = useState(false);
+  const [cleanMsg, setCleanMsg] = useState<string | null>(null);
+
   function updateFormConfig(patch: Partial<FormConfig>) {
     setForm((f) => ({ ...f, config: { ...f.config, ...patch } }));
   }
@@ -318,6 +340,38 @@ export function DataSourcePanel() {
     if (!form.name.trim()) {
       const baseName = srcPath.replace(/\\/g, "/").split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
       if (baseName) setForm((f) => ({ ...f, name: baseName }));
+    }
+  }
+
+  function handleOpenClean() {
+    setCleanMsg(null);
+    setOrphanGroups([]);
+    setCleanStep("confirm");
+    setCleanModalOpen(true);
+  }
+
+  async function handleConfirmClean() {
+    setCleanBusy(true);
+    try {
+      const groups = await window.aidclaude.jobs.listAllOrphanTables();
+      setOrphanGroups(groups);
+      setCleanStep("list");
+    } finally {
+      setCleanBusy(false);
+    }
+  }
+
+  async function handleDropOrphans() {
+    setCleanBusy(true);
+    setCleanMsg(null);
+    try {
+      const res = await window.aidclaude.jobs.dropAllOrphanTables();
+      setCleanMsg(`✓ ${res.dropped}개 테이블 삭제 완료`);
+      setOrphanGroups([]);
+    } catch (e) {
+      setCleanMsg(`✗ ${(e as Error).message}`);
+    } finally {
+      setCleanBusy(false);
     }
   }
 
@@ -385,13 +439,23 @@ export function DataSourcePanel() {
       {/* Header */}
       <div className="dsp-header">
         <strong className="dsp-title">데이터 소스</strong>
-        <button
-          type="button"
-          className="dsp-add-btn"
-          onClick={() => { setAdding((v) => !v); setForm(DEFAULT_FORM); }}
-        >
-          {adding ? "취소" : "+ 추가"}
-        </button>
+        <div className="dsp-header-actions">
+          <button
+            type="button"
+            className="dsp-clean-btn"
+            title="현재 작업 DB에서 삭제된 소스 테이블 정리"
+            onClick={handleOpenClean}
+          >
+            DB 정리
+          </button>
+          <button
+            type="button"
+            className="dsp-add-btn"
+            onClick={() => { setAdding((v) => !v); setForm(DEFAULT_FORM); }}
+          >
+            {adding ? "취소" : "+ 추가"}
+          </button>
+        </div>
       </div>
 
       {/* Add Form */}
@@ -573,6 +637,92 @@ export function DataSourcePanel() {
           onClose={() => setDelimDialog(null)}
           onConfirm={(delim) => updateFormConfig({ delimiter: delim })}
         />
+      )}
+
+      {/* DB 정리 모달 */}
+      {cleanModalOpen && (
+        <div className="cp-modal-overlay" onClick={() => !cleanBusy && setCleanModalOpen(false)}>
+          <div className="cp-modal" onClick={(e) => e.stopPropagation()}>
+            <p className="cp-modal-title">DB 고아 테이블 정리</p>
+
+            {cleanStep === "confirm" ? (
+              /* ── 1단계: 수행 여부 확인 ── */
+              <>
+                <p className="cp-modal-hint">
+                  모든 작업 DB에서 <code>result</code>와 현재 데이터 소스 테이블을
+                  제외한 나머지 테이블을 검색합니다. 계속하시겠습니까?
+                </p>
+                <div className="cp-modal-btns">
+                  <button
+                    type="button"
+                    className="cp-btn-save-source cp-modal-confirm"
+                    disabled={cleanBusy}
+                    onClick={handleConfirmClean}
+                  >
+                    {cleanBusy ? "검색 중…" : "계속"}
+                  </button>
+                  <button
+                    type="button"
+                    className="cp-export-btn cp-btn-cancel"
+                    disabled={cleanBusy}
+                    onClick={() => setCleanModalOpen(false)}
+                  >
+                    취소
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* ── 2단계: 작업별 고아 테이블 목록 + 삭제 ── */
+              <>
+                {orphanGroups.length === 0 ? (
+                  <p className="code-panel-clean-empty">
+                    {cleanMsg ?? "정리할 테이블이 없습니다."}
+                  </p>
+                ) : (
+                  <div className="code-panel-clean-list">
+                    {orphanGroups.map((g) => (
+                      <div key={g.jobId}>
+                        <p className="dsp-clean-group-label" title={g.jobLabel}>
+                          {g.jobLabel}
+                        </p>
+                        {g.tables.map((t) => (
+                          <div key={t} className="code-panel-clean-item">{t}</div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {cleanMsg && (
+                  <p className={cleanMsg.startsWith("✓") ? "cp-save-msg-ok" : "cp-save-msg-err"}>
+                    {cleanMsg}
+                  </p>
+                )}
+                <div className="cp-modal-btns">
+                  {orphanGroups.length > 0 && (
+                    <button
+                      type="button"
+                      className="cp-btn-save-source cp-modal-confirm"
+                      disabled={cleanBusy}
+                      onClick={handleDropOrphans}
+                    >
+                      {cleanBusy
+                        ? "삭제 중…"
+                        : `${orphanGroups.reduce((s, g) => s + g.tables.length, 0)}개 삭제`}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="cp-export-btn cp-btn-cancel"
+                    disabled={cleanBusy}
+                    onClick={() => setCleanModalOpen(false)}
+                  >
+                    닫기
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

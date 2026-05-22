@@ -437,6 +437,7 @@ job_<uuid>/
 | `job:update` 핸들러가 다른 잡 갱신 | activeJobId 비교 없음 | `if (updated.id === activeJobId)` 가드 추가 |
 | 1KB 미만 파일 "0KB" 표시 | 단순 `Math.round(bytes/1024)` | `fmtSize()` 헬퍼: 1024 미만은 `${b} B` 표시 |
 | 소스 전환 시 탭 상태 잔류 | `activeJobId` 변경 시 초기화 없음 | `useEffect` 의존성에 `activeJobId` 추가, 탭/데이터 리셋 |
+| SQL 완료 시 모든 소스 탭 자동 오픈 | `loadJobTables`가 `db.listTables()` 전체 목록으로 탭 생성 | `result` 테이블만 명시적으로 로드하도록 수정 |
 
 ---
 
@@ -451,9 +452,13 @@ job_<uuid>/
 | `.claude-bar*` | ChatPanel Claude 연결 상태 바 |
 | `.rp-*` | ResultPanel (파일·표·차트·DB 탭) |
 | `.rp-db-*` | ResultPanel SQLite DB 브라우저 |
-| `.tv-*` | TableView 데이터 그리드 |
+| `.tv-*` | TableView 데이터 그리드 (정렬·필터·셀팝업 포함) |
+| `.cp-*` | CenterPanel 탭바·툴바·모달 |
 | `.ss-*` | StartScreen |
 | `.pw-*` | ProjectWindow 레이아웃 |
+| `.dsp-*` | DataSourcePanel |
+| `.sp-*` | Schema 팝업 |
+| `.code-panel-*` | CodePanel 쿼리 히스토리 드롭다운 |
 
 ---
 
@@ -595,6 +600,201 @@ const args = ["--model", "opus", ...];
 
 ---
 
+### Phase 22 — 백업 기능 (쿼리 히스토리 + 결과 테이블)
+
+**신규 파일**
+- `app/src/main/services/backup-service.ts`
+
+**기능**
+- `backupQuerySql(workspaceDir)` — Claude 턴 시작 전 `query.sql`을 `history/query_001.sql` … 형태로 백업 (최대 20개, FIFO 순환)
+- `backupResultTable(db)` — SQL 실행 전 `result` 테이블을 `result_bak_001` … 형태로 복사 (최대 10개, FIFO 순환)
+- `listQueryHistory(workspaceDir)` — 히스토리 파일 목록을 역순으로 반환
+
+**적용 시점**
+| 시점 | 백업 대상 |
+|------|----------|
+| Claude 턴 시작 직전 | `query.sql` → `history/query_NNN.sql` |
+| `jobs:runSql` / `jobs:runAnalysis` 실행 직전 | `result` 테이블 → `result_bak_NNN` |
+
+**신규 IPC 채널**
+- `jobs:listQueryHistory(jobId)` — 해당 job의 쿼리 히스토리 파일 목록 반환
+
+**CodePanel 이전 쿼리 드롭다운**
+- 헤더에 "이전 쿼리 ▾" 버튼 추가
+- 클릭 시 `listQueryHistory`로 파일 목록 조회 → 드롭다운 표시
+- 항목 클릭 시 `files.readText`로 내용 로드 → 에디터에 반영 + 디바운스 자동 저장
+- 드롭다운 외부 클릭 시 닫힘 (click-outside 핸들러)
+
+---
+
+### Phase 23 — 버그 수정: SQL 실행 후 모든 소스 탭 자동 실행 방지
+
+**증상**: Claude가 생성한 SQL 실행 완료 후 data.db의 모든 테이블(소스 데이터 테이블 포함)이 CenterPanel에 자동으로 탭으로 열림
+
+**원인**: `loadJobTables(jobId)`에서 `db.listTables()`로 전체 테이블 목록을 가져와 탭을 일괄 생성
+
+**해결**: `result` 테이블만 탭으로 열도록 수정
+```typescript
+// 이전: db.listTables() → 모든 테이블 탭 오픈
+// 이후: 'result' 테이블만 직접 지정
+async function loadJobTables(jobId: string) {
+  const tableName = "result";
+  try {
+    const result = await window.aidclaude.db.previewTable(jobId, tableName, 500);
+    if (result.headers.length > 0) { openCenterTab(...); }
+  } catch {/* result 테이블 없으면 무시 */}
+}
+```
+
+---
+
+### Phase 24 — @-mention 데이터 소스 선택
+
+**목적**: 채팅 입력창에서 `@`를 입력해 데이터 소스를 지정, job 생성 시 해당 소스만 로드
+
+**변경 파일**: `ChatPanel.tsx`
+
+**동작 방식**
+1. 입력 중 커서 앞 `/@([^\s@]*)$/` 패턴 감지
+2. 일치하는 소스 목록을 필터링한 팝업 표시 (최대 전체 소스)
+3. 키보드 ↑↓로 탐색, Enter/클릭으로 선택 → `@소스명` 자동 완성
+4. Escape 또는 blur로 팝업 닫기 (blur는 150ms 지연으로 클릭 이벤트 우선 처리)
+5. 전송 시 `extractMentionedSourceIds(text)` — 본문의 `@이름`을 소스 ID로 변환, 매칭 없으면 전체 소스 사용
+
+**CSS 추가**: `.cld-mention-popup`, `.cld-mention-item`, `.cld-mention-item-active`, `.cld-mention-name`, `.cld-mention-type`
+
+---
+
+### Phase 25 — DB 정리 기능 (고아 테이블 삭제)
+
+**목적**: `data.db`에 남아있는 미사용 테이블(`result`, `result_bak_*`, 현재 카탈로그 소스에 해당하는 테이블 제외) 일괄 삭제
+
+**설계 결정**
+- DataSourcePanel 헤더에 "DB 정리" 버튼 배치 (항상 활성)
+- **전체 job** 대상 (활성 job에 국한하지 않음)
+- 2단계 모달: 확인 → 대상 테이블 목록 표시 → 삭제 실행
+
+**신규 IPC 채널**
+| 채널 | 설명 |
+|------|------|
+| `jobs:listAllOrphanTables()` | 모든 job DB에서 고아 테이블 목록 `{ jobId, jobLabel, tables }[]` 반환 |
+| `jobs:dropAllOrphanTables()` | 모든 job DB의 고아 테이블 삭제, `{ ok, dropped }` 반환 |
+
+**고아 테이블 판별 기준**
+- `result` — 보존
+- `result_bak_\d+` — 보존
+- 현재 카탈로그의 소스에 매핑되는 테이블명 — 보존
+- 그 외 전부 → 고아 (삭제 대상)
+
+**제거된 IPC**: `jobs:listOrphanTables`, `jobs:dropTables` (단일 job 범위)
+
+---
+
+### Phase 26 — 스키마 정보에 레코드 수 표시
+
+**목적**: DataSourcePanel 스키마 팝업에서 각 데이터 소스의 전체 레코드 수 확인
+
+**`shared/types.ts` 변경**
+```typescript
+interface TableSchema  { rowCount?: number; ... }   // MariaDB 테이블별
+interface DataSourceSchema { rowCount?: number; ... } // 플랫 소스 전체
+```
+
+**`schema-inspector.ts` 소스별 구현**
+| 소스 | 방법 |
+|------|------|
+| MariaDB | `information_schema.TABLES.TABLE_ROWS` 조회 → 테이블별 `rowCount` |
+| CSV | PapaParse 전체 파싱(preview 없음) → `allData.length` |
+| JSON | `Array.isArray(parsed) ? parsed.length : undefined` |
+| JSONL | 전체 라인 수 (`allLines.length`) |
+| Shapefile | DBF 헤더 바이트 4-7 `readUInt32LE(4)` |
+
+**`SchemaContent` UI 변경**
+- MariaDB: 테이블명 옆에 `N행` 표시 (flex layout)
+- 플랫 소스(CSV/JSON/JSONL/Shapefile): 컬럼 목록 위에 `N행` 헤더 표시
+- JSON (structure 표시 경우도 rowCount 포함)
+
+---
+
+### Phase 27 — TableView 컬럼 정렬
+
+**변경 파일**: `CenterPanel.tsx`
+
+**동작**
+- 컬럼 헤더 클릭 → 오름차순 정렬
+- 같은 헤더 재클릭 → 내림차순 전환
+- 정렬 컬럼 헤더: 파란색 하이라이트 + `▲`/`▼` 아이콘
+- 미정렬 컬럼 헤더: 흐릿한 `⇅` 아이콘 (hover 시 강조)
+- 하단 "정렬 초기화" 버튼: 정렬 적용 중일 때만 표시
+
+**정렬 로직**
+```typescript
+const cmp = !isNaN(an) && !isNaN(bn)
+  ? an - bn                                          // 숫자 비교
+  : av.localeCompare(bv, "ko", { numeric: true });   // 한국어 문자열 비교
+```
+
+탭 전환·더 불러오기 후에도 sortCol 상태 유지 (`useMemo` 의존성에 rows 포함)
+
+**CSS 추가**: `.tv-th-sortable`, `.tv-th-sorted`, `.tv-th-label`, `.tv-sort-icon`, `.tv-sort-clear-btn`
+
+---
+
+### Phase 28 — TableView 검색 필터
+
+**변경 파일**: `CenterPanel.tsx`
+
+**동작**
+- 테이블 상단 검색 바 (항상 표시)
+- 모든 컬럼 내용 대소문자 무관 검색
+- **Ctrl+F** (Mac: Cmd+F): 검색창 포커스
+- **Escape**: 검색어 초기화 + 포커스 해제
+- **× 버튼**: 검색어 초기화
+- 일치 텍스트 `<mark>` 하이라이트 (노란색)
+- 행 수 표시: 필터 적용 시 `3 / 1,234행` 형태
+
+**처리 순서**: 필터 → 정렬 (두 기능 연동)
+
+**CSS 추가**: `.tv-filter-bar`, `.tv-filter-wrap`, `.tv-filter-icon`, `.tv-filter-input`, `.tv-filter-clear`, `.tv-filter-count`, `.tv-highlight`, `.tv-td-empty`
+
+---
+
+### Phase 29 — 셀 상세 보기 팝업 (더블클릭)
+
+**변경 파일**: `CenterPanel.tsx`
+
+**동작**
+- 데이터 셀 더블클릭 → 전체 값을 보여주는 팝업 표시
+- 오버레이 클릭 / `×` 버튼 / Escape 키로 닫기
+
+**JSON 자동 감지 및 Beautify**
+```typescript
+function formatCellValue(raw: string): { display: string; isJson: boolean } {
+  // {…} 또는 […] 형태이면 JSON.parse 시도
+  // 성공 시 JSON.stringify(parsed, null, 2) → beautified 표시
+  // 실패 시 raw 텍스트 표시
+}
+```
+
+**텍스트 개행 처리**
+- 이스케이프된 `\r\n`, `\n`, `\r` → 실제 개행 문자로 변환
+- `<pre>` + `white-space: pre-wrap`으로 렌더링
+
+**팝업 구성**
+| 요소 | 설명 |
+|------|------|
+| 헤더 | 컬럼명, `JSON` 배지(해당 시), 글자 수, 복사 버튼, 닫기 버튼 |
+| 본문 | `<pre>` 태그, 모노스페이스 폰트, 스크롤 가능 |
+
+**복사 동작**
+- JSON 셀: beautified 텍스트 복사
+- 일반 텍스트 셀: 원본(raw) 복사
+- 복사 완료 후 1.5초간 "✓ 복사됨" 피드백
+
+**CSS 추가**: `.tv-cell-overlay`, `.tv-cell-popup`, `.tv-cell-popup-header`, `.tv-cell-popup-field`, `.tv-cell-popup-badge`, `.tv-cell-popup-len`, `.tv-cell-popup-copy`, `.tv-cell-popup-close`, `.tv-cell-popup-body`, `.tv-cell-popup-json`, `.tv-cell-popup-empty`
+
+---
+
 ## 현재 디렉터리 구조
 
 ```
@@ -663,6 +863,9 @@ c:\03_work\FW_AidClaude\
 | `db:saveAsSource` | invoke | DB 테이블 전체를 CSV 소스로 저장 |
 | `data:saveAsSource` | invoke | 임의 데이터(rows)를 CSV 소스로 저장 |
 | `jobs:runSql` | invoke | 임의 SQL을 job의 data.db에 실행 |
+| `jobs:listQueryHistory` | invoke | job의 쿼리 히스토리 파일 목록 반환 |
+| `jobs:listAllOrphanTables` | invoke | 모든 job DB의 고아 테이블 목록 반환 |
+| `jobs:dropAllOrphanTables` | invoke | 모든 job DB의 고아 테이블 일괄 삭제 |
 | `export:saveText` | invoke | 네이티브 저장 다이얼로그 + 텍스트 파일 쓰기 |
 | `export:saveBinary` | invoke | 네이티브 저장 다이얼로그 + 바이너리 파일 쓰기 |
 | `claude:probe` | invoke | CLI 탐지 + 인증 확인 |

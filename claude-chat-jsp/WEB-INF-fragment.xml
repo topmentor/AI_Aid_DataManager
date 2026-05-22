@@ -1,0 +1,26 @@
+<!-- ============================================================
+     web.xml 에 추가할 Servlet 설정 (Servlet 3.0 미만 또는 어노테이션 스캔 비활성 시)
+     Servlet 3.0+ + @WebServlet 어노테이션을 쓰는 경우 이 블록은 불필요합니다.
+     ============================================================ -->
+
+<servlet>
+    <servlet-name>ClaudeApiServlet</servlet-name>
+    <servlet-class>claudechat.ClaudeApiServlet</servlet-class>
+
+    <!-- Claude CLI 실행파일 경로 (생략 시 CLAUDE_BIN 환경변수 또는 "claude") -->
+    <!-- <init-param>
+        <param-name>claudeBin</param-name>
+        <param-value>C:/Users/you/AppData/Roaming/npm/claude.cmd</param-value>
+    </init-param> -->
+
+    <!-- 세션 작업 디렉터리 루트 (생략 시 java.io.tmpdir/claude-sessions/{sessionId}) -->
+    <!-- <init-param>
+        <param-name>sessionCwd</param-name>
+        <param-value>C:/myapp/workspace</param-value>
+    </init-param> -->
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>ClaudeApiServlet</servlet-name>
+    <url-pattern>/api/claude-chat/*</url-pattern>
+</servlet-mapping>

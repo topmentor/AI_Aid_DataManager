@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -18,6 +18,67 @@ ChartJS.register(
 
 // ── TableView ────────────────────────────────────────────────────────────────
 
+interface CellPopup {
+  header: string;
+  raw: string;
+  display: string;
+  isJson: boolean;
+}
+
+function formatCellValue(raw: string): { display: string; isJson: boolean } {
+  if (raw.length === 0) return { display: raw, isJson: false };
+  const trimmed = raw.trim();
+  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return { display: JSON.stringify(parsed, null, 2), isJson: true };
+    } catch { /* fall through */ }
+  }
+  // 이스케이프된 개행 문자(\n, \r\n, \r)를 실제 개행으로 변환
+  const display = raw.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\r/g, "\n");
+  return { display, isJson: false };
+}
+
+function CellDetailPopup({ popup, onClose }: { popup: CellPopup; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(popup.isJson ? popup.display : popup.raw);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="tv-cell-overlay" onMouseDown={onClose}>
+      <div className="tv-cell-popup" onMouseDown={e => e.stopPropagation()}>
+        <div className="tv-cell-popup-header">
+          <span className="tv-cell-popup-field">{popup.header}</span>
+          <div className="tv-cell-popup-header-right">
+            {popup.isJson && <span className="tv-cell-popup-badge">JSON</span>}
+            <span className="tv-cell-popup-len">{popup.raw.length}자</span>
+            <button type="button" className="tv-cell-popup-copy" onClick={handleCopy}>
+              {copied ? "✓ 복사됨" : "복사"}
+            </button>
+            <button type="button" className="tv-cell-popup-close" onClick={onClose}>×</button>
+          </div>
+        </div>
+        <pre className={`tv-cell-popup-body${popup.isJson ? " tv-cell-popup-json" : ""}`}>
+          {popup.display || <span className="tv-cell-popup-empty">(빈 값)</span>}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 function TableView({
   headers, rows, hasMore, loadingMore, onLoadMore,
 }: {
@@ -27,28 +88,160 @@ function TableView({
   loadingMore?: boolean;
   onLoadMore?: () => void;
 }) {
+  const [sortCol, setSortCol] = useState<number | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [filterText, setFilterText] = useState("");
+  const [cellPopup, setCellPopup] = useState<CellPopup | null>(null);
+  const filterInputRef = useRef<HTMLInputElement>(null);
+
+  // Ctrl+F / Cmd+F 로 필터 포커스
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        filterInputRef.current?.focus();
+        filterInputRef.current?.select();
+      }
+      if (e.key === "Escape" && document.activeElement === filterInputRef.current) {
+        setFilterText("");
+        filterInputRef.current?.blur();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // 1단계: 필터
+  const filteredRows = useMemo(() => {
+    if (!filterText.trim()) return rows;
+    const q = filterText.trim().toLowerCase();
+    return rows.filter(row => row.some(cell => cell.toLowerCase().includes(q)));
+  }, [rows, filterText]);
+
+  // 2단계: 정렬 (필터 결과에 적용)
+  const displayRows = useMemo(() => {
+    if (sortCol === null) return filteredRows;
+    return [...filteredRows].sort((a, b) => {
+      const av = a[sortCol] ?? "";
+      const bv = b[sortCol] ?? "";
+      const an = parseFloat(av);
+      const bn = parseFloat(bv);
+      const cmp = !isNaN(an) && !isNaN(bn)
+        ? an - bn
+        : av.localeCompare(bv, "ko", { numeric: true, sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [filteredRows, sortCol, sortDir]);
+
+  function handleColClick(colIdx: number) {
+    if (sortCol === colIdx) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortCol(colIdx);
+      setSortDir("asc");
+    }
+  }
+
+  function handleCellDblClick(header: string, raw: string) {
+    const { display, isJson } = formatCellValue(raw);
+    setCellPopup({ header, raw, display, isJson });
+  }
+
+  const isFiltered = filterText.trim() !== "";
+
   return (
     <div className="tv-root">
+      {/* 검색 바 */}
+      <div className="tv-filter-bar">
+        <div className="tv-filter-wrap">
+          <span className="tv-filter-icon">⌕</span>
+          <input
+            ref={filterInputRef}
+            type="text"
+            className="tv-filter-input"
+            placeholder="검색 (Ctrl+F)"
+            value={filterText}
+            onChange={e => setFilterText(e.target.value)}
+          />
+          {isFiltered && (
+            <button type="button" className="tv-filter-clear" onClick={() => setFilterText("")}>×</button>
+          )}
+        </div>
+        {isFiltered && (
+          <span className="tv-filter-count">
+            {displayRows.length.toLocaleString()} / {rows.length.toLocaleString()}행
+          </span>
+        )}
+      </div>
+
       <div className="tv-scroll">
         <table className="tv-table">
           <thead>
             <tr>
               <th className="tv-th-rownum">#</th>
-              {headers.map((h, i) => <th key={i} className="tv-th">{h}</th>)}
+              {headers.map((h, i) => (
+                <th
+                  key={i}
+                  className={`tv-th tv-th-sortable${sortCol === i ? " tv-th-sorted" : ""}`}
+                  onClick={() => handleColClick(i)}
+                >
+                  <span className="tv-th-label">{h}</span>
+                  <span className="tv-sort-icon">
+                    {sortCol === i ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} className={i % 2 === 0 ? "tv-row-even" : "tv-row-odd"}>
-                <td className="tv-td-rownum">{i + 1}</td>
-                {row.map((cell, j) => <td key={j} className="tv-td">{cell}</td>)}
+            {displayRows.length === 0 ? (
+              <tr>
+                <td className="tv-td-empty" colSpan={headers.length + 1}>
+                  일치하는 행이 없습니다.
+                </td>
               </tr>
-            ))}
+            ) : (
+              displayRows.map((row, i) => (
+                <tr key={i} className={i % 2 === 0 ? "tv-row-even" : "tv-row-odd"}>
+                  <td className="tv-td-rownum">{i + 1}</td>
+                  {row.map((cell, j) => {
+                    const q = isFiltered ? filterText.trim() : "";
+                    const idx = q ? cell.toLowerCase().indexOf(q.toLowerCase()) : -1;
+                    const content = idx !== -1
+                      ? <>
+                          {cell.slice(0, idx)}
+                          <mark className="tv-highlight">{cell.slice(idx, idx + q.length)}</mark>
+                          {cell.slice(idx + q.length)}
+                        </>
+                      : cell;
+                    return (
+                      <td
+                        key={j}
+                        className="tv-td"
+                        onDoubleClick={() => handleCellDblClick(headers[j] ?? "", cell)}
+                        title="더블클릭으로 전체 내용 보기"
+                      >
+                        {content}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
       <div className="tv-footer">
-        <span className="tv-row-count">{rows.length.toLocaleString()}행</span>
+        <span className="tv-row-count">
+          {isFiltered
+            ? `${displayRows.length.toLocaleString()} / ${rows.length.toLocaleString()}행`
+            : `${rows.length.toLocaleString()}행`}
+        </span>
+        {sortCol !== null && (
+          <button type="button" className="tv-sort-clear-btn" onClick={() => setSortCol(null)}>
+            정렬 초기화
+          </button>
+        )}
         {hasMore && (
           <button
             type="button"
@@ -63,6 +256,10 @@ function TableView({
           <span className="tv-all-loaded">전체 로드 완료</span>
         )}
       </div>
+
+      {cellPopup && (
+        <CellDetailPopup popup={cellPopup} onClose={() => setCellPopup(null)} />
+      )}
     </div>
   );
 }
@@ -307,14 +504,15 @@ export function CenterPanel() {
   }, [jobs, activeJobId]);
 
   async function loadJobTables(jobId: string) {
+    // SQL 완료 시에는 result 테이블만 탭으로 열기
+    // (data.db에는 소스 데이터 테이블도 함께 있으므로 전체 로드하면 모든 소스가 자동 프리뷰됨)
+    const tableName = "result";
+    const limit = 500;
     try {
-      const tables = await window.aidclaude.db.listTables(jobId);
-      const limit = 500;
-      for (const tableName of tables) {
-        const tabId = `db:${jobId}:${tableName}`;
-        const result = await window.aidclaude.db.previewTable(jobId, tableName, limit);
+      const result = await window.aidclaude.db.previewTable(jobId, tableName, limit);
+      if (result.headers.length > 0) {
         useAppStore.getState().openCenterTab({
-          id: tabId,
+          id: `db:${jobId}:${tableName}`,
           title: tableName,
           headers: result.headers,
           rows: result.rows,
@@ -322,7 +520,7 @@ export function CenterPanel() {
           fullyLoaded: result.rows.length < limit,
         });
       }
-    } catch {/* DB 없으면 무시 */}
+    } catch {/* result 테이블이 없으면 무시 */}
   }
 
   function openSaveModal() {

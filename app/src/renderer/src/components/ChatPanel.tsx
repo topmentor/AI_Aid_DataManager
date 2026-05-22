@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAppStore } from "../store/appStore";
@@ -102,20 +102,50 @@ export function ChatPanel() {
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // @-mention 팝업 상태
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStart, setMentionStart] = useState(0); // input 내 '@' 위치
+  const [mentionHighlight, setMentionHighlight] = useState(0);
+  const mentionRef = useRef<HTMLDivElement>(null);
+
   const messages = activeJobId ? (chatMessages.get(activeJobId) ?? []) : [];
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // 멘션 팝업 필터링
+  const mentionFiltered = useMemo(() => {
+    if (!mentionOpen) return [];
+    const q = mentionQuery.toLowerCase();
+    return sources.filter((s) => s.name.toLowerCase().includes(q));
+  }, [mentionOpen, mentionQuery, sources]);
+
+  // highlight 범위 보정
+  useEffect(() => {
+    setMentionHighlight(0);
+  }, [mentionFiltered]);
+
+  // 메시지에서 @멘션된 소스 ID 추출 (새 작업에서만 사용)
+  function extractMentionedSourceIds(text: string): string[] {
+    const matches = [...text.matchAll(/@([^\s@]+)/g)].map((m) => m[1]);
+    if (matches.length === 0) return sources.map((s) => s.id);
+    const matched = sources.filter((s) => matches.includes(s.name));
+    return matched.length > 0 ? matched.map((s) => s.id) : sources.map((s) => s.id);
+  }
+
   async function handleSend() {
     if (!input.trim() || streaming) return;
+    if (mentionOpen) return; // 팝업 열려 있으면 Enter는 선택으로 처리
     const text = input.trim();
     setInput("");
+    setMentionOpen(false);
 
     let jobId = activeJobId;
     if (!jobId) {
-      const job = await window.aidclaude.jobs.create(text, sources.map((s) => s.id));
+      const sourceIds = extractMentionedSourceIds(text);
+      const job = await window.aidclaude.jobs.create(text, sourceIds);
       addJob(job);
       setActiveJob(job.id);
       jobId = job.id;
@@ -136,7 +166,61 @@ export function ChatPanel() {
     window.aidclaude.claude.sendMessage(jobId, text).catch(() => {});
   }
 
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const value = e.target.value;
+    setInput(value);
+
+    const cursor = e.target.selectionStart ?? value.length;
+    const before = value.slice(0, cursor);
+    // '@' 뒤로 공백/엔터 없이 이어지는 텍스트 감지
+    const atMatch = before.match(/@([^\s@]*)$/);
+    if (atMatch) {
+      setMentionQuery(atMatch[1]);
+      setMentionStart(cursor - atMatch[0].length);
+      setMentionOpen(true);
+    } else {
+      setMentionOpen(false);
+    }
+  }
+
+  function selectMention(source: import("../../../shared/types").DataSource) {
+    const after = input.slice(mentionStart + 1 + mentionQuery.length);
+    const newInput = input.slice(0, mentionStart) + `@${source.name} ` + after;
+    setInput(newInput);
+    setMentionOpen(false);
+    // 커서를 삽입 뒤로 이동
+    const pos = mentionStart + source.name.length + 2;
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(pos, pos);
+      }
+    });
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionOpen && mentionFiltered.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionHighlight((h) => Math.min(h + 1, mentionFiltered.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionHighlight((h) => Math.max(h - 1, 0));
+        return;
+      }
+      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+        e.preventDefault();
+        selectMention(mentionFiltered[mentionHighlight]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionOpen(false);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
@@ -305,15 +389,33 @@ export function ChatPanel() {
       {/* Composer */}
       <div className={`cld-composer ${streaming ? "cld-composer-streaming" : ""}`}>
         <div className="cld-composer-frame">
+          {/* @-mention 팝업 */}
+          {mentionOpen && mentionFiltered.length > 0 && (
+            <div ref={mentionRef} className="cld-mention-popup">
+              {mentionFiltered.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`cld-mention-item${i === mentionHighlight ? " cld-mention-item-active" : ""}`}
+                  onMouseDown={(e) => { e.preventDefault(); selectMention(s); }}
+                  onMouseEnter={() => setMentionHighlight(i)}
+                >
+                  <span className="cld-mention-name">@{s.name}</span>
+                  <span className="cld-mention-type">{s.type}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="cld-input-wrap">
             <textarea
               ref={textareaRef}
               className="cld-composer-input"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onBlur={() => setTimeout(() => setMentionOpen(false), 150)}
               placeholder={
-                streaming ? "Claude가 응답 중입니다…" : "분석 요청을 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"
+                streaming ? "Claude가 응답 중입니다…" : "분석 요청을 입력하세요 (@소스명으로 소스 지정, Enter: 전송)"
               }
               rows={3}
               disabled={!!streaming}
