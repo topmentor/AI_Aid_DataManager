@@ -1,6 +1,7 @@
-# AidClaude 개발 히스토리
+# AIDA (구 AidClaude) 개발 히스토리
 
-> Claude Code CLI가 내장된 Electron 데스크탑 데이터 분석·시각화 도구
+> AIDA — AI Data Analyst. Claude Code / Codex 터미널과 SQL로 데이터를 조회·분석하는 Electron 데스크톱 도구.
+> (초기에는 'AidClaude'로 시작 — 아래 Phase 1~29는 당시 명칭으로 기록, 2026-06-03 개편으로 AIDA로 전환·재편.)
 
 ---
 
@@ -879,6 +880,27 @@ c:\03_work\FW_AidClaude\
 | `claude:error` | push | 턴 오류 |
 | `job:update` | push | 잡 상태 변경 |
 | `job:analyze_code` | push | analyze.py 내용 갱신 |
+
+---
+
+## 2026-06-03 대규모 개편 — 세션 요약
+
+`AidClaude`(Electron/Node 단일 앱)를 **`AIDA`(AI Data Analyst)** 로 재편. Node 백엔드를 **SSF(Java/Embedded Tomcat) HTTP 백엔드**로 전환하고, Claude 스트리밍 채팅 패널을 **터미널 기반 Agent(Claude/Codex)** 로 교체했습니다. 아래는 진행 순서이며, 각 항목의 상세는 같은 날짜의 개별 섹션에 있습니다.
+
+1. **백엔드 SSF 전환 (A)** — `server/` 모듈 신설(자립형 fat-jar). 설정/카탈로그/스키마/미리보기, job별 `data.db` 적재, SQL 실행, Python 분석(AST 검증), 백업/고아테이블 정리를 `/api/*.do`로 제공. 자체 SQLite 계층(`AidaContext`/`SqliteUtil`/`AppDb`) + 중앙 `app.db`. PowerShell 스모크로 검증.
+2. **Electron 통합 + 전송 전환 + 빌드 (B·C·D)** — Electron이 빈 포트로 백엔드 jar 자동 기동, preload 데이터 네임스페이스를 IPC→HTTP(`api-client.ts`)로 교체(React UI 유지), 네이티브 의존성(better-sqlite3 등) 제거.
+3. **ssf_skell 제거** — `server`를 Maven Central + sqlite-jdbc/commons-csv만으로 자립화, 미사용 샘플 코드 삭제.
+4. **빌드/실행 스크립트 정리 + Electron 패키징** — `run.ps1`/`build.ps1`/`stop.ps1` 3개로 통합, `electron-builder` NSIS 인스톨러(백엔드 jar+web 동봉).
+5. **프로젝트 이름 변경 AidClaude → AIDA** — Java 패키지/클래스/jar/컨텍스트(`/AIDA`)/데이터홈(`~/.aida`)/전역객체(`window.aida`)/테이블(`aida_*`) 전 식별자 일괄 변경.
+6. **Claude 채팅 → Agent PTY 터미널 (E)** — `reusable/agent-pty-kit`(pty4j) 이식. `TerminalPanel`(xterm.js)로 claude/codex를 작업 공간에서 실행. ChatPanel/CodePanel·Claude 서비스/IPC 삭제.
+7. **CLI 설치 기능** — 터미널 패널에서 설치 여부 감지(badge) + 편집 가능한 설치 명령을 PTY로 실행(`/api/agent-pty/check`·`install`).
+8. **Windows codex 실행 버그 수정** — npm `.cmd` 셸 스크립트를 `cmd.exe /c`로 래핑해 PTY 생성 실패("Couldn't create PTY") 해결.
+9. **설정창 + SQL 에디터 패널** — 좌측 하단 `⚙ 설정`(애플리케이션 기본 경로, AI 터미널 폰트). AI 터미널 아래 SQL 에디터(Monaco): 조회를 `result` 임시 테이블로 만들어 결과 탭 표시.
+10. **설정 폰트 UI** — 폰트를 콤보박스(추천 고정폭 + **시스템 설치 폰트** 동적 목록, `font-list`)로, 폰트·크기 한 줄 배치.
+11. **SQL 히스토리 + 자동 개행** — 실행 쿼리를 `app.db`(`aida_sql_history`)에 저장하고 "이전 쿼리"로 불러오기. Monaco `wordWrap` 적용.
+12. **문서/마무리** — [README.md](README.md) 작성, 첫 화면 부제 갱신("AI 기반 데이터 분석·시각화 도구").
+
+> 검증: 각 단계마다 서버 스모크 스위트(`server/smoke/`), 통합 테스트(`app/test/integration.mjs`), 타입체크, `electron-vite build`로 회귀 확인. 실제 Electron GUI 런타임은 환경 제약으로 직접 구동 검증은 일부 미수행(빌드·타입·HTTP/WS 계약으로 대체).
 
 ---
 
