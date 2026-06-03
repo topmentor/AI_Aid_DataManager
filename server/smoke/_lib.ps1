@@ -1,4 +1,4 @@
-# 공통 스모크 헬퍼: 서버 1회 기동 후 스크립트블록 실행
+﻿# 공통 스모크 헬퍼: 서버 1회 기동 후 스크립트블록 실행
 # 사용: . $PSScriptRoot\_lib.ps1 ; Invoke-WithServer -Port 8770 -Body { param($base) ... }
 $ErrorActionPreference = "Stop"
 

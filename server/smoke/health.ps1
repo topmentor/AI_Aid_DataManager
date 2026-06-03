@@ -1,4 +1,4 @@
-# AidClaude SSF 서버 헬스 스모크 테스트
+﻿# AidClaude SSF 서버 헬스 스모크 테스트
 # 사용법: powershell -File server/smoke/health.ps1 [-Port 8765]
 param([int]$Port = 8765)
 $ErrorActionPreference = "Stop"
