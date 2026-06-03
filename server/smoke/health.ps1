@@ -34,4 +34,5 @@ try {
 } finally {
   if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force }
   Remove-Item -Recurse -Force $acHome -ErrorAction SilentlyContinue
+  Remove-Item -Recurse -Force (Join-Path $env:TEMP "aida-tomcat-$Port") -ErrorAction SilentlyContinue
 }

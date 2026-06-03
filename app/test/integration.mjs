@@ -91,6 +91,7 @@ try {
 } finally {
   try { proc.kill(); } catch {}
   rmSync(home, { recursive: true, force: true });
+  rmSync(path.join(os.tmpdir(), `aida-tomcat-${port}`), { recursive: true, force: true });
 }
 
 if (fail > 0) { console.log(`[integration] FAILED (${fail})`); process.exit(1); }

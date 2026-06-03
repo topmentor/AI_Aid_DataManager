@@ -1,20 +1,16 @@
 ﻿# AIDA 빌드 (SSF jar + Electron 패키지 인스톨러)
 # 사용: .\build.ps1            전체: jar 빌드 + 렌더러 빌드 + 인스톨러 패키징(app\dist)
 #       .\build.ps1 -NoPackage 인스톨러 없이 jar + electron-vite build 까지만
-#       .\build.ps1 -SkipSmoke  jar 빌드 시 스모크 생략
-param([switch]$NoPackage, [switch]$SkipSmoke)
+#       .\build.ps1 -Smoke     jar 빌드 시 스모크 테스트 실행(기본은 미실행)
+param([switch]$NoPackage, [switch]$Smoke)
 . "$PSScriptRoot\tools\_common.ps1"
 
 Assert-Deps -NeedMaven
 Ensure-Npm
 
-# 1) SSF 백엔드 fat-jar (+ 스모크)
+# 1) SSF 백엔드 fat-jar (스모크는 -Smoke 일 때만)
 _step "SSF 백엔드 빌드"
-if ($SkipSmoke) {
-    & (Join-Path $AidaServer "build.ps1") -SkipTests
-} else {
-    & (Join-Path $AidaServer "build.ps1")
-}
+& (Join-Path $AidaServer "build.ps1") -Smoke:$Smoke
 if ($LASTEXITCODE -ne 0) { throw "SSF jar 빌드 실패" }
 if (-not (Test-Path $AidaJar)) { throw "jar 없음: $AidaJar" }
 _ok "jar: $AidaJar"

@@ -73,7 +73,7 @@ function Ensure-Jar {
     param([switch]$Force)
     _step "SSF 백엔드 jar"
     if ($Force -or -not (Test-Path $AidaJar)) {
-        & (Join-Path $AidaServer "build.ps1") -SkipTests
+        & (Join-Path $AidaServer "build.ps1")
         if ($LASTEXITCODE -ne 0) { throw "SSF jar 빌드 실패" }
         _ok "jar 빌드 완료"
     } else { _ok "jar 존재: $AidaJar" }

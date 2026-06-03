@@ -31,6 +31,14 @@ public class EmbeddedApplication {
 
         Tomcat tomcat = new Tomcat();
         tomcat.setPort(port);
+
+        // Tomcat 작업 디렉터리(work/, temp/)를 프로젝트가 아닌 시스템 임시 폴더에 둔다.
+        // (기본값은 CWD의 tomcat.<port> 폴더가 생성되어 프로젝트를 오염시킴)
+        File baseDir = new File(System.getProperty("java.io.tmpdir"), "aida-tomcat-" + port);
+        baseDir.mkdirs();
+        tomcat.setBaseDir(baseDir.getAbsolutePath());
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> deleteRecursively(baseDir)));
+
         tomcat.getConnector();
 
         // 개발 모드 판별: -Dwebapp.base=web 이고 web/WEB-INF/web.xml이 존재
@@ -92,6 +100,17 @@ public class EmbeddedApplication {
         tomcat.start();
         System.out.println("Server started: http://localhost:" + port + contextPath);
         tomcat.getServer().await();
+    }
+
+    /** 디렉터리 재귀 삭제 (Tomcat 작업 폴더 정리). */
+    private static void deleteRecursively(File f) {
+        if (f == null || !f.exists()) return;
+        File[] children = f.listFiles();
+        if (children != null) {
+            for (File c : children) deleteRecursively(c);
+        }
+        //noinspection ResultOfMethodCallIgnored
+        f.delete();
     }
 
     /**

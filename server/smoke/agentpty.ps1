@@ -72,6 +72,7 @@ try {
 } finally {
     if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force }
     Remove-Item -Recurse -Force $acHome -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force (Join-Path $env:TEMP "aida-tomcat-$Port") -ErrorAction SilentlyContinue
 }
 if ($fail -gt 0) { Write-Host "[agentpty] FAILED ($fail)" -ForegroundColor Red; Get-Content "$env:TEMP\acpty.err" -Tail 20 -ErrorAction SilentlyContinue; exit 1 }
 Write-Host "[agentpty] ALL PASS" -ForegroundColor Green

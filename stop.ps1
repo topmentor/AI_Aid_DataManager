@@ -28,6 +28,10 @@ $aida = Get-Process -Name "AIDA" -ErrorAction SilentlyContinue
 foreach ($p in $aida) { try { Stop-Process -Id $p.Id -Force; Write-Host "  정지: AIDA.exe (PID $($p.Id))" -ForegroundColor Green; $script:killed++ } catch {} }
 
 # 4) Tomcat 임시 작업 디렉터리 정리
+#    - 신규: 시스템 임시 폴더의 aida-tomcat-<port> (강제 종료 시 셧다운 훅 미실행분)
+#    - 레거시: 프로젝트 하위에 남아있을 수 있는 tomcat.<port>
+Get-ChildItem -Path $env:TEMP -Directory -Filter "aida-tomcat-*" -ErrorAction SilentlyContinue |
+    ForEach-Object { Remove-Item -Recurse -Force $_.FullName -ErrorAction SilentlyContinue; Write-Host "  정리: $($_.FullName)" -ForegroundColor DarkGray }
 foreach ($base in @($root, (Join-Path $root "app"), (Join-Path $root "server"))) {
     Get-ChildItem -Path $base -Directory -Filter "tomcat.*" -ErrorAction SilentlyContinue |
         ForEach-Object { Remove-Item -Recurse -Force $_.FullName -ErrorAction SilentlyContinue; Write-Host "  정리: $($_.FullName)" -ForegroundColor DarkGray }

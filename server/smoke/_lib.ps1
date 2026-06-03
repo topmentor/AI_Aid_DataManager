@@ -32,6 +32,7 @@ function Invoke-WithServer {
     finally {
         if ($srv.Proc -and -not $srv.Proc.HasExited) { Stop-Process -Id $srv.Proc.Id -Force -ErrorAction SilentlyContinue }
         Remove-Item -Recurse -Force $acHome -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force (Join-Path $env:TEMP "aida-tomcat-$Port") -ErrorAction SilentlyContinue
     }
 }
 
