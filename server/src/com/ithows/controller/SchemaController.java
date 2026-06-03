@@ -28,7 +28,10 @@ public class SchemaController {
         SourceRef s = resolve(request);
         if (s == null) return AcResp.error(request, "소스를 찾을 수 없습니다(id 확인)");
         try {
-            return AcResp.map(request, SchemaInspector.inspect(s));
+            org.json.JSONObject schema = SchemaInspector.inspect(s);
+            schema.put("sourceId", s.id);
+            schema.put("sourceName", s.name);
+            return AcResp.map(request, schema);
         } catch (Exception e) {
             return AcResp.error(request, e.getMessage());
         }
