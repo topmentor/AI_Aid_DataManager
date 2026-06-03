@@ -39,6 +39,11 @@ public final class AppDb {
               + "  workspace_dir TEXT,"
               + "  created_at INTEGER,"
               + "  updated_at INTEGER"
+              + ");"
+              + "CREATE TABLE IF NOT EXISTS aida_sql_history ("
+              + "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+              + "  sql TEXT NOT NULL,"
+              + "  created_at INTEGER"
               + ");");
         }
     }

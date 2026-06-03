@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("aida", {
   jobs: api.jobs,
   data: api.data,
   db: api.db,
+  sql: api.sql,
   files: {
     open: (fp: string) => ipcRenderer.invoke("files:open", fp), // 네이티브 열기는 IPC
     readText: api.filesHttp.readText,

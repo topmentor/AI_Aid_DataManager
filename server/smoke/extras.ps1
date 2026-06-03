@@ -66,6 +66,18 @@ Invoke-WithServer -Port $Port -Body {
     Post $base "api/writeText.do" @{ path = (Join-Path $ws "analyze.py"); content = $bad2 } | Out-Null
     $pb = Post $base "api/runJobAnalysis.do" @{ jobId = $jobId }
     Check "AST blocks import os" ($pb.resultMap.ok -eq $false)
+
+    # ── SQL 히스토리 (전역 app.db) ──
+    Post $base "api/clearSqlHistory.do" @{} | Out-Null
+    Post $base "api/addSqlHistory.do" @{ sql = "SELECT 1" } | Out-Null
+    Post $base "api/addSqlHistory.do" @{ sql = "SELECT 1" } | Out-Null  # 중복 → 무시
+    Post $base "api/addSqlHistory.do" @{ sql = "SELECT 2" } | Out-Null
+    $h = Get-Ac $base "api/listSqlHistory.do?limit=10"
+    Check "sql history count=2 (dedupe)" ($h.count -eq 2)
+    Check "sql history newest first" ($h.resultList[0].sql -eq "SELECT 2")
+    Post $base "api/clearSqlHistory.do" @{} | Out-Null
+    $h2 = Get-Ac $base "api/listSqlHistory.do"
+    Check "sql history cleared" ($h2.count -eq 0)
 }
 if ($script:AcFail -gt 0) { Write-Host "[extras] FAILED ($script:AcFail)" -ForegroundColor Red; exit 1 }
 Write-Host "[extras] ALL PASS" -ForegroundColor Green

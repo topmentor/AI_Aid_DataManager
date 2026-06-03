@@ -82,6 +82,18 @@ export function createApiClient(serverUrl: string) {
         return { ok: true, dropped: Number(m.dropped ?? 0) };
       },
     },
+    sql: {
+      listHistory: async (limit = 100) =>
+        okList(await call(serverUrl, `listSqlHistory.do?limit=${limit}`)) as {
+          id: number; sql: string; createdAt: number;
+        }[],
+      addHistory: async (sql: string) => {
+        await call(serverUrl, "addSqlHistory.do", { sql }).catch(() => undefined);
+      },
+      clearHistory: async () => {
+        await call(serverUrl, "clearSqlHistory.do", {});
+      },
+    },
     data: {
       saveAsSource: async (sourceName: string, headers: string[], rows: string[][]) => {
         const e = await call(serverUrl, "saveDataAsSource.do", { sourceName, headers, rows });

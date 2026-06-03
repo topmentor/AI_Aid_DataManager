@@ -44,6 +44,11 @@ declare global {
       data: {
         saveAsSource(sourceName: string, headers: string[], rows: string[][]): Promise<{ ok: boolean; source?: DataSource; error?: string }>;
       };
+      sql: {
+        listHistory(limit?: number): Promise<{ id: number; sql: string; createdAt: number }[]>;
+        addHistory(sql: string): Promise<void>;
+        clearHistory(): Promise<void>;
+      };
       db: {
         listTables(jobId: string): Promise<string[]>;
         previewTable(jobId: string, tableName: string, limit?: number): Promise<{ title: string; headers: string[]; rows: string[][] }>;
