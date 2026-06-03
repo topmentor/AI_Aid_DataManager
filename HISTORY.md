@@ -879,3 +879,41 @@ c:\03_work\FW_AidClaude\
 | `claude:error` | push | 턴 오류 |
 | `job:update` | push | 잡 상태 변경 |
 | `job:analyze_code` | push | analyze.py 내용 갱신 |
+
+---
+
+## 백엔드 SSF 전환 (하위 프로젝트 A) — 2026-06-03
+
+Electron main(Node.js/TypeScript) 데이터 백엔드를 **SSF(Simple Spring-like Framework, Java/Embedded Tomcat 9, javax.servlet)** HTTP 백엔드(`server/`)로 전환. SAF 레퍼런스와 동일한 3-tier 지향(Electron 셸 + SSF 백엔드 + webapp). Claude CLI 스트리밍과 네이티브 다이얼로그는 Electron에 잔류.
+
+- 설계: [docs/superpowers/specs/2026-06-03-ssf-backend-conversion-design.md](docs/superpowers/specs/2026-06-03-ssf-backend-conversion-design.md)
+- 계획: [docs/superpowers/plans/2026-06-03-ssf-backend.md](docs/superpowers/plans/2026-06-03-ssf-backend.md)
+
+### 핵심 결정
+- `ssf_skell/`을 베이스로 `server/` 모듈 구성(lib는 `ssf_skell/lib` 참조). Maven `pom.xml`(shade) → 실행 가능 fat-jar(`aidclaude-server.jar`), `EmbeddedApplication`으로 `java -jar` 기동. 기본 컨텍스트 `/AidClaude`.
+- `JdbcDao`(MariaDB 하드와이어) 대신 자체 SQLite 계층(`SqliteUtil`/`AppDb`): 중앙 `app.db`(`ac_settings`/`ac_catalog`/`ac_jobs`) + job별 `data.db`.
+- 데이터 홈: `-Daidclaude.home` / `AIDCLAUDE_HOME` / `~/.aidclaude` (`AcContext`).
+- 프레임워크 기본 JSP(`commonResultJson.jsp`)는 값 이스케이프를 하지 않아 임의 셀에서 깨진 JSON 생성 → 컨트롤러는 `org.json`으로 완성 JSON을 만들어 `RESULT_SIMPLE_JSON`(신규 `simpleResultJson2.jsp` 원시 출력)으로 반환(`AcResp`).
+- JSON 키 순서 보존 위해 Jackson 사용(org.json 20171018은 HashMap 기반).
+
+### 엔드포인트 (`/AidClaude/api/*.do`)
+| 컨트롤러 | 엔드포인트 |
+|---|---|
+| Settings | getSettings, setSettings |
+| Catalog | listSources, addSource, updateSource, removeSource, testConnection |
+| Schema | getSchema, previewData (csv/json/jsonl/mariadb/shapefile) |
+| Jobs | listJobs, createJob, refreshJobSources, runJobSql, runJobAnalysis, getSqlOptions, listQueryHistory, listOrphanTables, dropOrphanTables |
+| DB | listTables, previewTable, saveTableAsSource, saveDataAsSource |
+| Files | readText, writeText, readLines, readBase64, copyToData, copyShapefile |
+
+### 신규 패키지 `com.ithows.aidclaude.*`
+`AcContext`, `SqliteUtil`, `AppDb`, `AcResp`, `AidClaudeInitListener`, `Names`, `SourceLoader`, `JsonSource`, `MariaDbUtil`, `shapefile/DbfReader`, `SchemaInspector`, `SystemPromptBuilder`, `JobService`, `SqlRunner`, `BackupService`, `OrphanService`, `PythonRunner`(+ `python/ast_validate.py`), `ConnTester`, `model/SourceRef`. DAO: `SettingsDAO`/`CatalogDAO`/`JobDAO`.
+
+### 검증
+PowerShell 스모크(`server/smoke/*.ps1`, `all.ps1`) — settings/catalog/schema/job/db/json/shapefile/extras 전부 통과. Python analyze.py 실제 실행(AST 검증 + `output/result.csv` 생성) 확인. MariaDB 소스는 코드 완성, 라이브 서버 필요(스모크 제외).
+빌드: `server/build.ps1`, 실행: `server/run.ps1`.
+
+### 후속 (별도 하위 프로젝트)
+- **B**: Electron 셸 + Claude CLI IPC 이식 + jar 기동(`-Daidclaude.home`/포트 전달) + 네이티브 다이얼로그.
+- **C**: webapp(Vanilla TS) — React 컴포넌트 재작성 + HTTP API 클라이언트.
+- **D**: setup.ps1 통합(Maven 빌드 + jar + Electron 실행/패키징).
