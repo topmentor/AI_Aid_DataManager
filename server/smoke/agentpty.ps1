@@ -48,6 +48,27 @@ try {
     # kill
     $kill = Invoke-RestMethod "$base/api/agent-pty/local/$sid/kill" -Method Post -TimeoutSec 5
     Check "kill ok" ($kill.sessionId -eq $sid)
+
+    # ── 설치 확인(check) ──
+    $chk = Invoke-RestMethod "$base/api/agent-pty/check?agent=claude" -TimeoutSec 5
+    Check "check returns installed bool" ($chk.installed -is [bool])
+    Check "check returns installCommand" (-not [string]::IsNullOrEmpty($chk.installCommand))
+
+    # ── 설치 실행(install, 무해한 echo로 셸 PTY 경로 검증) ──
+    $ibody = "agent=claude&command=" + [Uri]::EscapeDataString("echo installtest") + "&workingDirectory=" + [Uri]::EscapeDataString($acHome)
+    $inst = Invoke-RestMethod "$base/api/agent-pty/install" -Method Post -ContentType "application/x-www-form-urlencoded" -Body $ibody -TimeoutSec 10
+    Check "install returns sessionId" (-not [string]::IsNullOrEmpty($inst.sessionId))
+    $iws = New-Object System.Net.WebSockets.ClientWebSocket
+    $iuri = [Uri]("ws://localhost:$Port/AidClaude/ws/agent-pty/local/$([Uri]::EscapeDataString($inst.sessionId))?cols=80&rows=24")
+    $iws.ConnectAsync($iuri, $ct).Wait(5000) | Out-Null
+    $igot = ""
+    for ($i = 0; $i -lt 8; $i++) {
+        $r2 = $iws.ReceiveAsync($seg, $ct)
+        if ($r2.Wait(2000)) { $rr = $r2.Result; if ($rr.Count -gt 0) { $igot += [System.Text.Encoding]::UTF8.GetString($buf, 0, $rr.Count) } }
+        if ($igot -match "installtest") { break }
+    }
+    Check "install shell PTY output" ($igot -match "installtest")
+    try { $iws.Dispose() } catch {}
 } finally {
     if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force }
     Remove-Item -Recurse -Force $acHome -ErrorAction SilentlyContinue

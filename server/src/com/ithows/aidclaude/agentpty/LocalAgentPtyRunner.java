@@ -76,6 +76,51 @@ public final class LocalAgentPtyRunner {
         return StartResult.ok(session);
     }
 
+    /** 셸 명령줄(인자 포함)을 OS 셸로 PTY 실행. CLI 설치 스크립트 등에 사용. */
+    public StartResult startShell(String commandLine, String workingDirectory) {
+        if (commandLine == null || commandLine.isBlank()) {
+            return StartResult.badInput("install command is empty");
+        }
+        Path cwd;
+        try {
+            cwd = PathGuard.requireExistingDir(workingDirectory);
+            PathGuard.requirePrefixAllowed(cwd, allowedCwdPrefixes);
+        } catch (IllegalArgumentException e) {
+            return StartResult.badInput(e.getMessage());
+        }
+
+        Map<String, String> env = new HashMap<>(System.getenv());
+        env.put("TERM", "xterm-256color");
+        env.putIfAbsent("COLORTERM", "truecolor");
+
+        PtyProcess process;
+        try {
+            process = new PtyProcessBuilder()
+                    .setCommand(shellArgv(commandLine))
+                    .setEnvironment(env)
+                    .setDirectory(cwd.toString())
+                    .setInitialColumns(80)
+                    .setInitialRows(24)
+                    .start();
+        } catch (IOException e) {
+            return StartResult.spawnFailed("PTY spawn failed: " + e.getMessage());
+        }
+
+        String sessionId = UUID.randomUUID().toString();
+        LocalAgentPtyOptions opts = new LocalAgentPtyOptions(commandLine, workingDirectory);
+        LocalAgentPtySession session = new LocalAgentPtySession(sessionId, opts, process);
+        registry.register(session);
+        return StartResult.ok(session);
+    }
+
+    private static String[] shellArgv(String commandLine) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) {
+            return new String[]{"cmd.exe", "/c", commandLine};
+        }
+        return new String[]{"/bin/sh", "-lc", commandLine};
+    }
+
     public boolean attach(String sessionId, Session ws, int cols, int rows) {
         LocalAgentPtySession session = registry.get(sessionId);
         if (session == null || session.closed.get() || session.ws != null) return false;

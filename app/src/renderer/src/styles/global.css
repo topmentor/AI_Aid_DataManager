@@ -1082,6 +1082,11 @@ code {
 .term-btn { padding: 5px 12px; border-radius: 4px; border: 1px solid #3a3d41; background: #333; color: #eee; cursor: pointer; font-size: 13px; }
 .term-btn-primary { background: #0e639c; border-color: #0e639c; }
 .term-btn-ghost { background: transparent; }
+.term-badge { font-size: 11px; padding: 1px 7px; border-radius: 8px; }
+.term-badge-ok { background: #1f3d1f; color: #7fd77f; }
+.term-badge-no { background: #4a2020; color: #f08a8a; }
+.term-install { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #333; padding-top: 10px; margin-top: 4px; }
+.term-install-input { background: #2a2a2a; border: 1px solid #3a3d41; color: #ddd; padding: 5px 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
 
 /* ── Resize handles ── */
 .pw-vhandle {

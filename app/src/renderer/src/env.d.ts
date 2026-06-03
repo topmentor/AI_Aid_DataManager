@@ -27,6 +27,8 @@ declare global {
         }>;
         killLocal(sessionId: string): Promise<void>;
         wsUrl(sessionId: string, cols: number, rows: number): string;
+        check(agent: string): Promise<{ installed: boolean; binary: string; installCommand: string }>;
+        installLocal(opts: { agent: string; command?: string; workingDirectory?: string }): Promise<{ sessionId: string }>;
       };
       jobs: {
         create(userRequest: string, sourceIds: string[]): Promise<Job>;

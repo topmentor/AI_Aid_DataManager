@@ -144,6 +144,28 @@ export function createApiClient(serverUrl: string) {
           method: "POST",
         }).catch(() => undefined);
       },
+      check: async (agent: string) => {
+        const res = await fetch(`${serverUrl}/api/agent-pty/check?agent=${encodeURIComponent(agent)}`);
+        const json = (await res.json()) as { installed?: boolean; binary?: string; installCommand?: string };
+        return {
+          installed: !!json.installed,
+          binary: json.binary ?? agent,
+          installCommand: json.installCommand ?? "",
+        };
+      },
+      installLocal: async (opts: { agent: string; command?: string; workingDirectory?: string }) => {
+        const params: Record<string, string> = { agent: opts.agent };
+        if (opts.command) params.command = opts.command;
+        if (opts.workingDirectory) params.workingDirectory = opts.workingDirectory;
+        const res = await fetch(`${serverUrl}/api/agent-pty/install`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+          body: new URLSearchParams(params).toString(),
+        });
+        const json = (await res.json()) as { sessionId?: string; error?: string };
+        if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+        return json as { sessionId: string };
+      },
       wsUrl: (sessionId: string, cols: number, rows: number) => {
         const wsBase = serverUrl.replace(/^http/i, "ws");
         return `${wsBase}/ws/agent-pty/local/${encodeURIComponent(sessionId)}?cols=${cols}&rows=${rows}`;
