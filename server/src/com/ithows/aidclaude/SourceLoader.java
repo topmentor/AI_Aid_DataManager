@@ -37,9 +37,64 @@ public final class SourceLoader {
     /** 소스를 data.db에 적재하고 생성된 테이블 목록을 반환한다. */
     public static List<LoadedTable> load(Connection db, SourceRef s) throws Exception {
         switch (s.type == null ? "" : s.type) {
-            case "csv": return loadCsv(db, s);
+            case "csv":       return loadCsv(db, s);
+            case "json":      return loadTable(db, Names.toTableName(s.name), JsonSource.readJson(s));
+            case "jsonl":     return loadTable(db, Names.toTableName(s.name), JsonSource.readJsonl(s));
+            case "mariadb":   return loadMariaDb(db, s);
+            case "shapefile": return loadShapefile(db, s);
             default: throw new Exception("적재 미지원 소스 유형: " + s.type);
         }
+    }
+
+    private static List<LoadedTable> loadTable(Connection db, String table, JsonSource.Table t) throws Exception {
+        long n = createAndInsert(db, table, t.fields, t.rows);
+        List<LoadedTable> out = new ArrayList<>();
+        out.add(new LoadedTable(table, n));
+        return out;
+    }
+
+    private static List<LoadedTable> loadMariaDb(Connection db, SourceRef s) throws Exception {
+        String prefix = Names.toTableName(s.name);
+        String schema = MariaDbUtil.database(s);
+        List<LoadedTable> out = new ArrayList<>();
+        try (java.sql.Connection my = MariaDbUtil.connect(s)) {
+            List<com.ithows.ResultMap> tbls = SqliteUtil.queryForMapList(my,
+                    "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=? ORDER BY TABLE_NAME",
+                    new Object[]{schema});
+            for (com.ithows.ResultMap tr : tbls) {
+                String tn = String.valueOf(tr.get("TABLE_NAME"));
+                try (java.sql.Statement st = my.createStatement();
+                     java.sql.ResultSet rs = st.executeQuery("SELECT * FROM `" + tn.replace("`", "``") + "`")) {
+                    java.sql.ResultSetMetaData md = rs.getMetaData();
+                    int cols = md.getColumnCount();
+                    List<String> fields = new ArrayList<>();
+                    for (int i = 1; i <= cols; i++) fields.add(md.getColumnLabel(i));
+                    List<Map<String, Object>> rows = new ArrayList<>();
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        for (int i = 1; i <= cols; i++) row.put(fields.get(i - 1), rs.getObject(i));
+                        rows.add(row);
+                    }
+                    String table = prefix + "_" + tn;
+                    long n = createAndInsert(db, table, fields, rows);
+                    out.add(new LoadedTable(table, n));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static List<LoadedTable> loadShapefile(Connection db, SourceRef s) throws Exception {
+        com.ithows.aidclaude.shapefile.DbfReader r =
+                com.ithows.aidclaude.shapefile.DbfReader.open(
+                        new java.io.File(s.configStr("shpPath", "")), s.configStr("encoding", "euc-kr"));
+        List<String> fields = r.fields;
+        List<Map<String, Object>> rows = r.readRecords(0);
+        String table = Names.toTableName(s.name);
+        long n = createAndInsert(db, table, fields, rows);
+        List<LoadedTable> out = new ArrayList<>();
+        out.add(new LoadedTable(table, n));
+        return out;
     }
 
     private static List<LoadedTable> loadCsv(Connection db, SourceRef s) throws Exception {
