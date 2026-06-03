@@ -9,7 +9,8 @@ $scripts = @(
     @{ name = "db";        port = 8806 },
     @{ name = "json";      port = 8807 },
     @{ name = "shapefile"; port = 8808 },
-    @{ name = "extras";    port = 8809 }
+    @{ name = "extras";    port = 8809 },
+    @{ name = "agentpty";  port = 8810 }
 )
 $fail = 0
 foreach ($s in $scripts) {
