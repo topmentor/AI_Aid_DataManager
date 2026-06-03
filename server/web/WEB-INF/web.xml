@@ -33,6 +33,16 @@
         <load-on-startup>1</load-on-startup>
     </servlet>    
     
+    <!-- AidClaude: 로컬 Electron 렌더러의 cross-origin /api 호출 허용 (첫 필터) -->
+    <filter>
+        <filter-name>CorsFilter</filter-name>
+        <filter-class>com.ithows.aidclaude.CorsFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>CorsFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
     <filter>
         <filter-name>Character Encoding</filter-name>
         <filter-class>com.ithows.CharacterEncodingFilter</filter-class>

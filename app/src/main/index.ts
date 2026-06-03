@@ -76,6 +76,11 @@ app.on("before-quit", () => {
   }
 });
 
+// preload가 동기로 SSF 서버 URL을 질의 (동적 포트, sandbox 안전)
+ipcMain.on("aidclaude:server-url", (e) => {
+  e.returnValue = server ? server.url : "";
+});
+
 // ── Claude (Electron 잔류 — SSF에 HTTP 위임) ──
 ipcMain.handle("claude:probe", () => probeClaude({ cwd: dataHome() }));
 ipcMain.handle("claude:sendMessage", async (_e, jobId: string, msg: string) => {
