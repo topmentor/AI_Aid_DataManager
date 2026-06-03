@@ -41,6 +41,12 @@ function Check($name, $cond) {
     else { Write-Host "  FAIL  $name" -ForegroundColor Red; $script:AcFail++ }
 }
 function Post($base, $path, $obj) {
-    Invoke-RestMethod "$base/$path" -Method Post -ContentType "application/json" -Body ($obj | ConvertTo-Json -Depth 10) -TimeoutSec 10
+    $json  = ($obj | ConvertTo-Json -Depth 10)
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    $r = Invoke-WebRequest "$base/$path" -Method Post -ContentType "application/json; charset=utf-8" -Body $bytes -TimeoutSec 15 -UseBasicParsing
+    return [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json
 }
-function Get-Ac($base, $path) { Invoke-RestMethod "$base/$path" -TimeoutSec 10 }
+function Get-Ac($base, $path) {
+    $r = Invoke-WebRequest "$base/$path" -TimeoutSec 15 -UseBasicParsing
+    return [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json
+}
