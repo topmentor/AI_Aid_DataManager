@@ -6,7 +6,7 @@
     실행:  java -Daidclaude.home=<home> -Dserver.port=8765 \
                 -Dwebapp.base=server/web -jar server/target/aidclaude-server.jar
 
-    참고: system-scope jar(SOXGeoEngine 등)는 ../ssf_skell/lib 를 참조한다(중복 보관 방지).
+    자립형: 모든 의존성은 Maven Central + sqlite-jdbc/commons-csv 로 해결(ssf_skell 불필요).
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -26,7 +26,6 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <jackson.version>2.15.2</jackson.version>
         <tomcat.version>9.0.98</tomcat.version>
-        <ssflib>${project.basedir}/../ssf_skell/lib</ssflib>
     </properties>
 
     <dependencies>
@@ -292,70 +291,8 @@
             <version>5.3.38</version>
         </dependency>
 
-        <!-- ===== Local JARs (system scope → ssf_skell/lib) ===== -->
-        <dependency>
-            <groupId>com.kitfox.svg</groupId>
-            <artifactId>svg-salamander</artifactId>
-            <version>1.1.1</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/svgSalamander-v1.1.1.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>com.ithows</groupId>
-            <artifactId>engine</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/engine.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>com.ithows</groupId>
-            <artifactId>filters</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/Filters.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>com.sox</groupId>
-            <artifactId>sox-geo-engine</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/SOXGeoEngine.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle</groupId>
-            <artifactId>ojdbc6</artifactId>
-            <version>11.2.0</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/ojdbc6.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>java-json</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/java-json.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.xmlrpc</groupId>
-            <artifactId>xmlrpc</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/xmlrpc.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>javax.media</groupId>
-            <artifactId>jai-core</artifactId>
-            <version>1.1.3</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/jai_core.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>javax.media</groupId>
-            <artifactId>jai-codec</artifactId>
-            <version>1.1.3</version>
-            <scope>system</scope>
-            <systemPath>${ssflib}/jai_codec.jar</systemPath>
-        </dependency>
+        <!-- (system-scope 로컬 jar 제거됨 — server/src 어느 파일도 import하지 않음.
+             ssf_skell/lib 의존 없이 자립 빌드) -->
 
     </dependencies>
 

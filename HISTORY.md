@@ -947,5 +947,10 @@ A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정
 
 ### 남은 사항
 - 배포 인스톨러(electron-builder `extraResources`로 jar+web 동봉, JRE 번들)는 미설정 — 개발 실행은 시스템 java 사용.
-- `ssf_skell/`이 git 미추적 상태(`server/pom.xml`이 `../ssf_skell/lib` 참조) → 신규 클론 빌드를 위해 ssf_skell 커밋 또는 필요한 lib jar를 server/로 이전 필요.
 - 실제 Electron GUI 구동 검증은 본 환경 제약으로 미수행(빌드·타입·HTTP 계약으로 대체 검증).
+
+### ssf_skell 제거 (2026-06-03)
+참조용 `ssf_skell/` 제거. `server`를 **자립형**으로 전환:
+- `server/pom.xml`의 system-scope 로컬 jar 9종(SOXGeoEngine/engine/Filters/jai/ojdbc6/xmlrpc/svgSalamander/java-json) 제거 — `server/src` 어느 파일도 import하지 않음을 전수 확인.
+- 유일한 로컬-jar 의존이던 jai(`com.sun.media.jai.codec`)는 미사용 샘플 클러스터에만 존재 → 삭제: `JakartaUpload`, `MultiPartRequest`, `service/FileManager`, `util/ImageUtil`, `controller/APIController`, `controller/TutorialController`, `dao/TutorialDAO`.
+- 검증: `ssf_skell` 완전 부재 상태에서 `mvn package` 성공 + 스모크 스위트/통합 19종 ALL PASS. 모든 의존성은 Maven Central + sqlite-jdbc/commons-csv.
