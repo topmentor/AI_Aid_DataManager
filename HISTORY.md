@@ -949,6 +949,16 @@ A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정
 - 배포 인스톨러(electron-builder `extraResources`로 jar+web 동봉, JRE 번들)는 미설정 — 개발 실행은 시스템 java 사용.
 - 실제 Electron GUI 구동 검증은 본 환경 제약으로 미수행(빌드·타입·HTTP 계약으로 대체 검증).
 
+## 프로젝트 이름 변경: AidClaude → AIDA (AI Data Analyst) — 2026-06-03
+
+전 식별자 일괄 변경(검증: 빌드+전체 스모크+통합+타입체크, 코드 내 구명칭 0건):
+- Java 패키지 `com.ithows.aidclaude.*` → `com.ithows.aida.*`, 클래스 `AcContext/AcResp/AidClaudeInitListener` → `AidaContext/AidaResp/AidaInitListener`
+- Maven/jar `aidclaude-server` → `aida-server`, 컨텍스트 `/AidClaude` → `/AIDA`
+- 데이터 홈 `~/.aidclaude` → `~/.aida`, 시스템프로퍼티 `aidclaude.home` → `aida.home`, 환경변수 `AIDCLAUDE_HOME` → `AIDA_HOME`
+- 렌더러 전역 `window.aidclaude` → `window.aida`, IPC `aidclaude:server-url` → `aida:server-url`
+- app.db 테이블 `ac_*` → `aida_*`, npm name `aidclaude` → `aida`
+- (이전 단계들의 HISTORY 본문은 당시 명칭 'AidClaude'로 기록되어 있음 — 사료로 보존)
+
 ## Claude 채팅 패널 → Agent PTY 터미널 대체 (E) — 2026-06-03
 
 `reusable/agent-pty-kit`(pty4j 로컬 PTY + @ServerEndpoint WS + xterm.js)를 이식해 스트리밍 IPC 기반 ChatPanel/CodePanel을 **claude/codex 터미널**로 대체. 에이전트가 job 워크스페이스(cwd)에서 data.db/data_helpers.py를 직접 다룬다.
