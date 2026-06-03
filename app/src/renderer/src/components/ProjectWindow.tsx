@@ -1,214 +1,103 @@
 import { useEffect, useRef, useState } from "react";
 import { DataSourcePanel } from "./DataSourcePanel";
-import { ChatPanel } from "./ChatPanel";
-import { CodePanel } from "./CodePanel";
+import { TerminalPanel } from "./TerminalPanel";
+import { SqlPanel } from "./SqlPanel";
 import { CenterPanel } from "./CenterPanel";
+import { SettingsModal } from "./SettingsModal";
 import { useAppStore } from "../store/appStore";
-import type { Job } from "../../../shared/types";
 
 // ── Drag utilities ──────────────────────────────────────────────────────────
 
 function colDrag(
-  e: React.MouseEvent,
-  startSize: number,
-  direction: 1 | -1,
-  min: number,
-  max: number,
-  setSize: (n: number) => void
+  e: React.MouseEvent, startSize: number, direction: 1 | -1,
+  min: number, max: number, setSize: (n: number) => void
 ) {
   e.preventDefault();
   const startX = e.clientX;
   document.body.style.cursor = "col-resize";
   document.body.style.userSelect = "none";
-
-  const onMove = (ev: MouseEvent) => {
-    const next = startSize + (ev.clientX - startX) * direction;
-    setSize(Math.max(min, Math.min(max, next)));
-  };
+  const onMove = (ev: MouseEvent) => setSize(Math.max(min, Math.min(max, startSize + (ev.clientX - startX) * direction)));
   const onUp = () => {
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    window.removeEventListener("mousemove", onMove);
-    window.removeEventListener("mouseup", onUp);
+    document.body.style.cursor = ""; document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp);
   };
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
+  window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp);
 }
 
 function rowDrag(
-  e: React.MouseEvent,
-  containerEl: HTMLElement | null,
-  startRatio: number,
-  min: number,
-  max: number,
-  setRatio: (r: number) => void
+  e: React.MouseEvent, containerEl: HTMLElement | null,
+  startRatio: number, min: number, max: number, setRatio: (r: number) => void
 ) {
   e.preventDefault();
   const startY = e.clientY;
   const h = containerEl?.offsetHeight ?? 600;
   document.body.style.cursor = "row-resize";
   document.body.style.userSelect = "none";
-
-  const onMove = (ev: MouseEvent) => {
-    const next = startRatio + (ev.clientY - startY) / h;
-    setRatio(Math.max(min, Math.min(max, next)));
-  };
+  const onMove = (ev: MouseEvent) => setRatio(Math.max(min, Math.min(max, startRatio + (ev.clientY - startY) / h)));
   const onUp = () => {
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    window.removeEventListener("mousemove", onMove);
-    window.removeEventListener("mouseup", onUp);
+    document.body.style.cursor = ""; document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp);
   };
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
+  window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp);
 }
-
-// ── Handle components ───────────────────────────────────────────────────────
 
 function VHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
-  return (
-    <div className="pw-vhandle" onMouseDown={onMouseDown}>
-      <span className="pw-grip pw-vgrip" />
-    </div>
-  );
+  return <div className="pw-vhandle" onMouseDown={onMouseDown}><span className="pw-grip pw-vgrip" /></div>;
 }
-
 function HHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
-  return (
-    <div className="pw-hhandle" onMouseDown={onMouseDown}>
-      <span className="pw-grip pw-hgrip" />
-    </div>
-  );
-}
-
-// ── IPC event helpers ───────────────────────────────────────────────────────
-
-function summarizeToolInput(name: string, input: Record<string, unknown>): string {
-  if (name === "Read" || name === "Write" || name === "Edit") {
-    const p = input.file_path;
-    if (typeof p === "string") return p.replace(/\\/g, "/").split("/").pop() ?? p;
-  }
-  return "";
+  return <div className="pw-hhandle" onMouseDown={onMouseDown}><span className="pw-grip pw-hgrip" /></div>;
 }
 
 // ── ProjectWindow ────────────────────────────────────────────────────────────
 
 export function ProjectWindow() {
-  const [leftW,    setLeftW]    = useState(240);
-  const [rightW,   setRightW]   = useState(380);
-  const [chatRatio, setChatRatio] = useState(0.55);
+  const [leftW, setLeftW] = useState(240);
+  const [rightW, setRightW] = useState(420);
+  const [termRatio, setTermRatio] = useState(0.6);
   const rightRef = useRef<HTMLDivElement>(null);
+  const settingsOpen = useAppStore((s) => s.settingsOpen);
+  const setSettings = useAppStore((s) => s.setSettings);
+  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
 
-  // ── IPC event subscriptions ─────────────────────────────────────────────
+  // 설정을 store에 로드(폰트 등 사용)
   useEffect(() => {
-    const store = useAppStore.getState;
-
-    const onStream = (...args: unknown[]) => {
-      const { jobId, event } = args[0] as { jobId: string; event: Record<string, unknown> };
-      const current = store().streaming;
-      if (!current || current.jobId !== jobId) return;
-      const assistantId = current.assistantMessageId;
-      const type = event.type as string | undefined;
-
-      if (type === "assistant") {
-        const message = event.message as { content?: Array<Record<string, unknown>> } | undefined;
-        const blocks = message?.content ?? [];
-        // 같은 이벤트 안에 tool_use가 있으면 text는 "앞으로 할 일" 예고이므로 건너뜀
-        // (도구 실행 후 후속 이벤트에서 같은 내용이 다시 오면 중복이 됨)
-        const hasToolUse = blocks.some((b) => b.type === "tool_use");
-        for (const block of blocks) {
-          if (block.type === "text" && typeof block.text === "string" && !hasToolUse) {
-            store().appendAssistantText(assistantId, block.text);
-          } else if (block.type === "tool_use") {
-            const name  = (block.name as string) ?? "tool";
-            const input = (block.input as Record<string, unknown>) ?? {};
-            const id    = (block.id as string) ?? crypto.randomUUID();
-            store().upsertToolCall(assistantId, {
-              id, name, summary: summarizeToolInput(name, input), status: "running",
-            });
-          }
-        }
-      } else if (type === "user") {
-        const message = event.message as { content?: Array<Record<string, unknown>> } | undefined;
-        for (const block of message?.content ?? []) {
-          if (block.type === "tool_result" && typeof block.tool_use_id === "string") {
-            const msg = store().chatMessages.get(jobId)?.find((m) => m.id === assistantId);
-            const tc  = msg?.toolCalls.find((c) => c.id === block.tool_use_id);
-            if (tc) store().upsertToolCall(assistantId, { ...tc, status: "done" });
-          }
-        }
-      }
-    };
-
-    const onDone = (...args: unknown[]) => {
-      const { jobId } = args[0] as { jobId: string };
-      const current = store().streaming;
-      if (!current || current.jobId !== jobId) return;
-      store().markAssistantDone(current.assistantMessageId);
-    };
-
-    const onError = (...args: unknown[]) => {
-      const { jobId, error } = args[0] as { jobId: string; error: string };
-      const current = store().streaming;
-      if (!current || current.jobId !== jobId) return;
-      store().markAssistantError(current.assistantMessageId, error);
-    };
-
-    const onJobUpdate = (...args: unknown[]) => {
-      useAppStore.getState().updateJob(args[0] as Job);
-    };
-
-    const onAnalyzeCode = (...args: unknown[]) => {
-      const payload = args[0] as { jobId: string; code: string };
-      const s = useAppStore.getState();
-      if (payload.jobId === s.activeJobId) s.setActiveCode(payload.code);
-    };
-
-    window.aidclaude.on("claude:stream",     onStream);
-    window.aidclaude.on("claude:done",       onDone);
-    window.aidclaude.on("claude:error",      onError);
-    window.aidclaude.on("job:update",        onJobUpdate);
-    window.aidclaude.on("job:analyze_code",  onAnalyzeCode);
-    return () => {
-      window.aidclaude.off("claude:stream",    onStream);
-      window.aidclaude.off("claude:done",      onDone);
-      window.aidclaude.off("claude:error",     onError);
-      window.aidclaude.off("job:update",       onJobUpdate);
-      window.aidclaude.off("job:analyze_code", onAnalyzeCode);
-    };
-  }, []);
+    window.aida.settings.get().then(setSettings).catch(() => {});
+  }, [setSettings]);
 
   return (
     <div
       className="pw-root"
       style={{ "--pw-left-w": `${leftW}px`, "--pw-right-w": `${rightW}px` } as React.CSSProperties}
     >
-      {/* ── Left: DataSource ── */}
+      {/* ── Left: DataSource + 설정 ── */}
       <div className="pw-left">
         <DataSourcePanel />
+        <button className="pw-settings-btn" onClick={() => setSettingsOpen(true)} title="설정">
+          ⚙ 설정
+        </button>
       </div>
 
-      <VHandle onMouseDown={(e) => colDrag(e, leftW,   1,  160, 480, setLeftW)} />
+      <VHandle onMouseDown={(e) => colDrag(e, leftW, 1, 160, 480, setLeftW)} />
 
       {/* ── Center: Content tabs ── */}
       <div className="pw-center">
         <CenterPanel />
       </div>
 
-      <VHandle onMouseDown={(e) => colDrag(e, rightW, -1,  240, 640, setRightW)} />
+      <VHandle onMouseDown={(e) => colDrag(e, rightW, -1, 280, 720, setRightW)} />
 
-      {/* ── Right: Chat + Code ── */}
+      {/* ── Right: Agent terminal (top) + SQL editor (bottom) ── */}
       <div
         className="pw-right"
         ref={rightRef}
-        style={{ "--pw-chat-ratio": `${chatRatio * 100}%` } as React.CSSProperties}
+        style={{ "--pw-term-ratio": `${termRatio * 100}%` } as React.CSSProperties}
       >
-        <ChatPanel />
-        <HHandle onMouseDown={(e) =>
-          rowDrag(e, rightRef.current, chatRatio, 0.2, 0.85, setChatRatio)
-        } />
-        <CodePanel />
+        <TerminalPanel />
+        <HHandle onMouseDown={(e) => rowDrag(e, rightRef.current, termRatio, 0.2, 0.85, setTermRatio)} />
+        <SqlPanel />
       </div>
+
+      {settingsOpen && <SettingsModal />}
     </div>
   );
 }

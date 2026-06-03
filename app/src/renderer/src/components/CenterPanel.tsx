@@ -509,7 +509,7 @@ export function CenterPanel() {
     const tableName = "result";
     const limit = 500;
     try {
-      const result = await window.aidclaude.db.previewTable(jobId, tableName, limit);
+      const result = await window.aida.db.previewTable(jobId, tableName, limit);
       if (result.headers.length > 0) {
         useAppStore.getState().openCenterTab({
           id: `db:${jobId}:${tableName}`,
@@ -542,9 +542,9 @@ export function CenterPanel() {
       let res: { ok: boolean; source?: import("../../../shared/types").DataSource; error?: string };
 
       if (ref?.kind === "db") {
-        res = await window.aidclaude.db.saveAsSource(ref.jobId, ref.tableName, saveName.trim());
+        res = await window.aida.db.saveAsSource(ref.jobId, ref.tableName, saveName.trim());
       } else {
-        res = await window.aidclaude.data.saveAsSource(saveName.trim(), activeTab.headers, activeTab.rows);
+        res = await window.aida.data.saveAsSource(saveName.trim(), activeTab.headers, activeTab.rows);
       }
 
       if (res.ok && res.source) {
@@ -564,9 +564,9 @@ export function CenterPanel() {
     const ref = activeTab?.sourceRef;
     if (!ref) return { headers: activeTab?.headers ?? [], rows: activeTab?.rows ?? [] };
     if (ref.kind === "catalog") {
-      return window.aidclaude.catalog.previewData(ref.sourceId, 100_000_000);
+      return window.aida.catalog.previewData(ref.sourceId, 100_000_000);
     } else {
-      return window.aidclaude.db.previewTable(ref.jobId, ref.tableName, 100_000_000);
+      return window.aida.db.previewTable(ref.jobId, ref.tableName, 100_000_000);
     }
   }
 
@@ -609,9 +609,9 @@ export function CenterPanel() {
       const nextLimit = activeTab.rows.length + 500;
       let result: { title: string; headers: string[]; rows: string[][] };
       if (activeTab.sourceRef.kind === "catalog") {
-        result = await window.aidclaude.catalog.previewData(activeTab.sourceRef.sourceId, nextLimit);
+        result = await window.aida.catalog.previewData(activeTab.sourceRef.sourceId, nextLimit);
       } else {
-        result = await window.aidclaude.db.previewTable(
+        result = await window.aida.db.previewTable(
           activeTab.sourceRef.jobId, activeTab.sourceRef.tableName, nextLimit
         );
       }

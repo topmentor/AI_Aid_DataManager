@@ -879,3 +879,129 @@ c:\03_work\FW_AidClaude\
 | `claude:error` | push | 턴 오류 |
 | `job:update` | push | 잡 상태 변경 |
 | `job:analyze_code` | push | analyze.py 내용 갱신 |
+
+---
+
+## 백엔드 SSF 전환 (하위 프로젝트 A) — 2026-06-03
+
+Electron main(Node.js/TypeScript) 데이터 백엔드를 **SSF(Simple Spring-like Framework, Java/Embedded Tomcat 9, javax.servlet)** HTTP 백엔드(`server/`)로 전환. SAF 레퍼런스와 동일한 3-tier 지향(Electron 셸 + SSF 백엔드 + webapp). Claude CLI 스트리밍과 네이티브 다이얼로그는 Electron에 잔류.
+
+- 설계: [docs/superpowers/specs/2026-06-03-ssf-backend-conversion-design.md](docs/superpowers/specs/2026-06-03-ssf-backend-conversion-design.md)
+- 계획: [docs/superpowers/plans/2026-06-03-ssf-backend.md](docs/superpowers/plans/2026-06-03-ssf-backend.md)
+
+### 핵심 결정
+- `ssf_skell/`을 베이스로 `server/` 모듈 구성(lib는 `ssf_skell/lib` 참조). Maven `pom.xml`(shade) → 실행 가능 fat-jar(`aidclaude-server.jar`), `EmbeddedApplication`으로 `java -jar` 기동. 기본 컨텍스트 `/AidClaude`.
+- `JdbcDao`(MariaDB 하드와이어) 대신 자체 SQLite 계층(`SqliteUtil`/`AppDb`): 중앙 `app.db`(`ac_settings`/`ac_catalog`/`ac_jobs`) + job별 `data.db`.
+- 데이터 홈: `-Daidclaude.home` / `AIDCLAUDE_HOME` / `~/.aidclaude` (`AcContext`).
+- 프레임워크 기본 JSP(`commonResultJson.jsp`)는 값 이스케이프를 하지 않아 임의 셀에서 깨진 JSON 생성 → 컨트롤러는 `org.json`으로 완성 JSON을 만들어 `RESULT_SIMPLE_JSON`(신규 `simpleResultJson2.jsp` 원시 출력)으로 반환(`AcResp`).
+- JSON 키 순서 보존 위해 Jackson 사용(org.json 20171018은 HashMap 기반).
+
+### 엔드포인트 (`/AidClaude/api/*.do`)
+| 컨트롤러 | 엔드포인트 |
+|---|---|
+| Settings | getSettings, setSettings |
+| Catalog | listSources, addSource, updateSource, removeSource, testConnection |
+| Schema | getSchema, previewData (csv/json/jsonl/mariadb/shapefile) |
+| Jobs | listJobs, createJob, refreshJobSources, runJobSql, runJobAnalysis, getSqlOptions, listQueryHistory, listOrphanTables, dropOrphanTables |
+| DB | listTables, previewTable, saveTableAsSource, saveDataAsSource |
+| Files | readText, writeText, readLines, readBase64, copyToData, copyShapefile |
+
+### 신규 패키지 `com.ithows.aidclaude.*`
+`AcContext`, `SqliteUtil`, `AppDb`, `AcResp`, `AidClaudeInitListener`, `Names`, `SourceLoader`, `JsonSource`, `MariaDbUtil`, `shapefile/DbfReader`, `SchemaInspector`, `SystemPromptBuilder`, `JobService`, `SqlRunner`, `BackupService`, `OrphanService`, `PythonRunner`(+ `python/ast_validate.py`), `ConnTester`, `model/SourceRef`. DAO: `SettingsDAO`/`CatalogDAO`/`JobDAO`.
+
+### 검증
+PowerShell 스모크(`server/smoke/*.ps1`, `all.ps1`) — settings/catalog/schema/job/db/json/shapefile/extras 전부 통과. Python analyze.py 실제 실행(AST 검증 + `output/result.csv` 생성) 확인. MariaDB 소스는 코드 완성, 라이브 서버 필요(스모크 제외).
+빌드: `server/build.ps1`, 실행: `server/run.ps1`.
+
+### 후속 (별도 하위 프로젝트)
+- **B**: Electron 셸 + Claude CLI IPC 이식 + jar 기동(`-Daidclaude.home`/포트 전달) + 네이티브 다이얼로그.
+- **C**: webapp(Vanilla TS) — React 컴포넌트 재작성 + HTTP API 클라이언트.
+- **D**: setup.ps1 통합(Maven 빌드 + jar + Electron 실행/패키징).
+
+---
+
+## Electron 통합 + 전송 전환 + 빌드 (B·C·D) — 2026-06-03
+
+A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정: **C는 React 유지 + 전송만 HTTP**(전면 재작성 대신 리스크 최소), **동적 빈 포트**.
+설계: [docs/superpowers/specs/2026-06-03-electron-webapp-integration-design.md](docs/superpowers/specs/2026-06-03-electron-webapp-integration-design.md)
+
+### B — Electron 셸
+- `app/src/main/services/server-launcher.ts` — 빈 포트 탐색 → `java -jar aidclaude-server.jar`(`-Daidclaude.home`/`-Dserver.port`/`-Dwebapp.base`) → `/api/checkHealth.do` 대기.
+- `app/src/main/services/ssf-client.ts` — main→SSF HTTP(getSettings/getJob/refreshJobSources/getSqlOptions/runJobAnalysis).
+- `claude-service.ts` 재작성 — DB/job-service/backup 의존 제거. 턴 전후를 SSF에 HTTP 위임(소스 갱신→스트리밍→옵션 판정→단일 옵션 시 runJobAnalysis), `job:update`로 상태 보고.
+- `main/index.ts` — 시작 시 백엔드 기동, `--server-url` 전달, Claude/dialog/export/files.open IPC만 유지(데이터 IPC 제거), 종료 시 java 정리.
+- 이관 완료된 9개 main 서비스 삭제(settings/catalog/schema/sqlite-loader/job/python/ast/system-prompt/backup).
+
+### C — 전송 전환 (React 불변)
+- `app/src/preload/api-client.ts` — `fetch(serverUrl + /api/*.do)` + SSF 봉투(`result/resultMap/resultList`) 언랩 → 기존 `window.aidclaude.*` 반환 형태로 매핑(Job.createdAt→string, schema sourceId 주입 등).
+- `preload/index.ts` — 데이터 네임스페이스는 HTTP, Claude/dialog/export/files.open/이벤트는 IPC. serverUrl은 `process.argv`에서 파싱.
+
+### D — 빌드/실행
+- `app/package.json` — 네이티브 의존성(better-sqlite3/mysql2/papaparse/shapefile) + electron-rebuild/postinstall 제거(네이티브 빌드 불필요). `test:integration` 스크립트 추가.
+- `setup.ps1` — Java17/Maven 확인 + SSF jar 빌드 단계 추가, 구식 better-sqlite3 리빌드 제거. `-Dev`는 Electron이 jar 자동 기동.
+
+### 검증
+- 타입체크(node+web) clean, `electron-vite build` 성공.
+- `app/test/integration.mjs` — **실제 api-client.ts(esbuild 번들)를 라이브 SSF에 대해** 19/19 통과(설정/카탈로그/스키마/job/SQL/DB/파일/소스저장, 한글·콤마 셀 포함).
+- 서버 스모크 스위트 회귀 ALL PASS.
+
+### 남은 사항
+- 배포 인스톨러(electron-builder `extraResources`로 jar+web 동봉, JRE 번들)는 미설정 — 개발 실행은 시스템 java 사용.
+- 실제 Electron GUI 구동 검증은 본 환경 제약으로 미수행(빌드·타입·HTTP 계약으로 대체 검증).
+
+## 설정창 + SQL 에디터 패널 추가 — 2026-06-03
+
+- **설정창**: 왼쪽 패널 하단 `⚙ 설정` 버튼(`pw-settings-btn`) → `SettingsModal`. 항목: 애플리케이션 기본 경로(작업 공간: data.db·CLAUDE.md 저장 위치, 폴더 선택 `dialog:openDirectory` 추가), AI 터미널 폰트(패밀리/크기).
+  - 백엔드: `SettingsDAO` 기본값 `termFontFamily`/`termFontSize` 추가; `JobService.createJob`이 설정 `workspaceRoot`(없으면 데이터 홈) 하위 `jobs/`에 워크스페이스 생성.
+  - `AppSettings` 타입에 `termFontFamily?`/`termFontSize?` 추가. `TerminalPanel`이 설정 폰트로 xterm 생성. 시작 시 ProjectWindow가 설정을 store에 로드.
+- **SQL 에디터 패널**(`SqlPanel`, AI 터미널 아래 분할): Monaco SQL 에디터 + "실행"(Ctrl+Enter). 활성 작업의 data.db 대상(없으면 전체 소스로 작업 자동 생성). 입력 조회를 `DROP TABLE IF EXISTS result; CREATE TABLE result AS <쿼리>`로 materialize → `result` 테이블 생성 + CenterPanel에 `result` 탭(`db:<jobId>:result`, 기존 동작과 동일) 표시.
+- ProjectWindow 우측 = TerminalPanel(상) + SqlPanel(하) 분할 복원. 검증: 서버 빌드+스모크(10)+통합 19/19 + 앱 typecheck/build OK.
+
+## 스크립트 정리 + Electron 패키지 빌드 — 2026-06-03
+
+루트 스크립트를 **3개로 정리**(기존 setup.ps1 / app·dev/build.ps1 / server/run.ps1 폐기):
+- **`run.ps1`** — 실행(개발): 의존성 확인 + jar 준비 + `npm run dev`(Electron이 백엔드 자동 기동). `-Rebuild`로 jar 재빌드.
+- **`build.ps1`** — 빌드(패키지 포함): SSF fat-jar(+스모크) + `electron-vite build` + **`electron-builder` 인스톨러**(`app/dist/AIDA-<ver>-setup.exe`). `-NoPackage`/`-SkipSmoke` 옵션.
+- **`stop.ps1`** — 정지: SSF `java`(aida-server) + Electron(dev/AIDA.exe) 프로세스 종료 + `tomcat.*` 임시 디렉터리 정리.
+- 공통 로직은 `tools/_common.ps1`(dot-source), jar 빌드는 `server/build.ps1` 재사용.
+
+**Electron 패키징 추가**: `app/electron-builder.yml`(appId `com.ithows.aida`, productName `AIDA`, NSIS), `extraResources`로 `aida-server.jar`+`web`를 `resources/server/`에 동봉 → 패키지 앱이 시스템 Java로 백엔드 기동(server-launcher 프로덕션 경로와 일치). 검증: `AIDA-0.1.0-setup.exe`(184MB) 생성 + 동봉 리소스 확인.
+비고: JRE 미번들(시스템 Java 17 필요). 코드사이닝 미적용.
+
+## 프로젝트 이름 변경: AidClaude → AIDA (AI Data Analyst) — 2026-06-03
+
+전 식별자 일괄 변경(검증: 빌드+전체 스모크+통합+타입체크, 코드 내 구명칭 0건):
+- Java 패키지 `com.ithows.aidclaude.*` → `com.ithows.aida.*`, 클래스 `AcContext/AcResp/AidClaudeInitListener` → `AidaContext/AidaResp/AidaInitListener`
+- Maven/jar `aidclaude-server` → `aida-server`, 컨텍스트 `/AidClaude` → `/AIDA`
+- 데이터 홈 `~/.aidclaude` → `~/.aida`, 시스템프로퍼티 `aidclaude.home` → `aida.home`, 환경변수 `AIDCLAUDE_HOME` → `AIDA_HOME`
+- 렌더러 전역 `window.aidclaude` → `window.aida`, IPC `aidclaude:server-url` → `aida:server-url`
+- app.db 테이블 `ac_*` → `aida_*`, npm name `aidclaude` → `aida`
+- (이전 단계들의 HISTORY 본문은 당시 명칭 'AidClaude'로 기록되어 있음 — 사료로 보존)
+
+## Claude 채팅 패널 → Agent PTY 터미널 대체 (E) — 2026-06-03
+
+`reusable/agent-pty-kit`(pty4j 로컬 PTY + @ServerEndpoint WS + xterm.js)를 이식해 스트리밍 IPC 기반 ChatPanel/CodePanel을 **claude/codex 터미널**로 대체. 에이전트가 job 워크스페이스(cwd)에서 data.db/data_helpers.py를 직접 다룬다.
+설계: [docs/superpowers/specs/2026-06-03-agent-terminal-panel-design.md](docs/superpowers/specs/2026-06-03-agent-terminal-panel-design.md)
+
+### 백엔드(SSF) — `com.ithows.aidclaude.agentpty`
+- 로컬 전용 이식(Remote/SSHJ 제외): AgentCommandCatalog/PathGuard/LocalAgentPty{Options,Session,Registry,Runner}/WebSocketEndpoint + 슬림 AgentPtyRuntime.
+- `AgentPtyServlet`(`/api/agent-pty/local` start/kill), `AgentPtyInitListener`(런타임 init + **프로그래매틱 `ServerContainer.addEndpoint`** — fat-jar의 @ServerEndpoint 스캔 한계 우회). cwd는 데이터 홈으로 가드.
+- pom: `+pty4j 0.13.6`; **컴파일 타깃 8→17**(record 등); **javassist 3.12→3.29**(reflections가 Java17 바이트코드 스캔하도록).
+
+### 프론트(React)
+- `TerminalPanel.tsx`(xterm.js): "시작"→`jobs.create`(소스 적재)→`agent.startLocal`(workspaceDir)→WS 연결. preload `agent.startLocal/killLocal/wsUrl`(동적 포트→ws). ProjectWindow 우측을 터미널로 교체.
+
+### 삭제
+- 프론트: ChatPanel/CodePanel/ResultPanel(레거시), appStore 채팅·스트리밍·probe·code 상태.
+- main: claude-bridge/service/detector + ssf-client, claude IPC, preload claude 네임스페이스·push 이벤트, chokidar.
+
+### 검증
+- 백엔드 스모크 `agentpty.ps1` 6/6(start→WS→PTY 출력→kill), 전체 스위트+통합 회귀 OK.
+- 프론트 typecheck(web+node) clean, electron-vite build OK, integration 19/19.
+- 비고: 실제 claude/codex TUI 구동은 GUI에서 확인 필요(codex CLI 미설치 시 해당 옵션은 spawn 실패).
+
+### ssf_skell 제거 (2026-06-03)
+참조용 `ssf_skell/` 제거. `server`를 **자립형**으로 전환:
+- `server/pom.xml`의 system-scope 로컬 jar 9종(SOXGeoEngine/engine/Filters/jai/ojdbc6/xmlrpc/svgSalamander/java-json) 제거 — `server/src` 어느 파일도 import하지 않음을 전수 확인.
+- 유일한 로컬-jar 의존이던 jai(`com.sun.media.jai.codec`)는 미사용 샘플 클러스터에만 존재 → 삭제: `JakartaUpload`, `MultiPartRequest`, `service/FileManager`, `util/ImageUtil`, `controller/APIController`, `controller/TutorialController`, `dao/TutorialDAO`.
+- 검증: `ssf_skell` 완전 부재 상태에서 `mvn package` 성공 + 스모크 스위트/통합 19종 ALL PASS. 모든 의존성은 Maven Central + sqlite-jdbc/commons-csv.

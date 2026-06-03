@@ -2,13 +2,12 @@ import type {
   DataSource,
   DataSourceSchema,
   Job,
-  ClaudeEnvProbe,
   AppSettings,
 } from "../../shared/types";
 
 declare global {
   interface Window {
-    aidclaude: {
+    aida: {
       settings: {
         get(): Promise<AppSettings>;
         set(s: Partial<AppSettings>): Promise<AppSettings>;
@@ -22,10 +21,14 @@ declare global {
         getSchema(id: string): Promise<DataSourceSchema>;
         previewData(id: string, limit?: number): Promise<{ title: string; headers: string[]; rows: string[][] }>;
       };
-      claude: {
-        probe(): Promise<ClaudeEnvProbe>;
-        sendMessage(jobId: string, message: string): Promise<void>;
-        abort(jobId: string): Promise<void>;
+      agent: {
+        startLocal(opts: { agent: string; workingDirectory: string }): Promise<{
+          sessionId: string; agent: string; command: string; workingDirectory: string;
+        }>;
+        killLocal(sessionId: string): Promise<void>;
+        wsUrl(sessionId: string, cols: number, rows: number): string;
+        check(agent: string): Promise<{ installed: boolean; binary: string; installCommand: string }>;
+        installLocal(opts: { agent: string; command?: string; workingDirectory?: string }): Promise<{ sessionId: string }>;
       };
       jobs: {
         create(userRequest: string, sourceIds: string[]): Promise<Job>;
@@ -40,6 +43,11 @@ declare global {
       };
       data: {
         saveAsSource(sourceName: string, headers: string[], rows: string[][]): Promise<{ ok: boolean; source?: DataSource; error?: string }>;
+      };
+      sql: {
+        listHistory(limit?: number): Promise<{ id: number; sql: string; createdAt: number }[]>;
+        addHistory(sql: string): Promise<void>;
+        clearHistory(): Promise<void>;
       };
       db: {
         listTables(jobId: string): Promise<string[]>;
@@ -61,9 +69,11 @@ declare global {
       };
       dialog: {
         openFile(filters: { name: string; extensions: string[] }[]): Promise<string | null>;
+        openDirectory(): Promise<string | null>;
       };
-      on(channel: string, fn: (...args: unknown[]) => void): void;
-      off(channel: string, fn: (...args: unknown[]) => void): void;
+      fonts: {
+        list(): Promise<string[]>;
+      };
     };
   }
 }

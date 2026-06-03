@@ -38,7 +38,7 @@ function DelimiterDialog({
 
   useEffect(() => {
     if (!filePath) { setLoading(false); return; }
-    window.aidclaude.files.readLines(filePath, 3).then((l) => {
+    window.aida.files.readLines(filePath, 3).then((l) => {
       setLines(l);
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -314,11 +314,11 @@ export function DataSourcePanel() {
 
   async function handleSelectFile() {
     if (form.type === "shapefile") {
-      const srcPath = await window.aidclaude.dialog.openFile([
+      const srcPath = await window.aida.dialog.openFile([
         { name: "Shapefile", extensions: ["shp"] },
       ]);
       if (!srcPath) return;
-      const { shpPath, encoding } = await window.aidclaude.files.copyShapefile(srcPath);
+      const { shpPath, encoding } = await window.aida.files.copyShapefile(srcPath);
       updateFormConfig({ shpPath, encoding });
       if (!form.name.trim()) {
         const baseName = srcPath.replace(/\\/g, "/").split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
@@ -332,9 +332,9 @@ export function DataSourcePanel() {
         : form.type === "jsonl"
         ? [{ name: "JSONL 파일", extensions: ["jsonl", "ndjson"] }]
         : [{ name: "JSON 파일", extensions: ["json"] }];
-    const srcPath = await window.aidclaude.dialog.openFile(filters);
+    const srcPath = await window.aida.dialog.openFile(filters);
     if (!srcPath) return;
-    const destPath = await window.aidclaude.files.copyToData(srcPath);
+    const destPath = await window.aida.files.copyToData(srcPath);
     updateFormConfig({ filePath: destPath });
     // 이름 필드가 비어 있으면 파일명(확장자 제외)으로 자동 채우기
     if (!form.name.trim()) {
@@ -353,7 +353,7 @@ export function DataSourcePanel() {
   async function handleConfirmClean() {
     setCleanBusy(true);
     try {
-      const groups = await window.aidclaude.jobs.listAllOrphanTables();
+      const groups = await window.aida.jobs.listAllOrphanTables();
       setOrphanGroups(groups);
       setCleanStep("list");
     } finally {
@@ -365,7 +365,7 @@ export function DataSourcePanel() {
     setCleanBusy(true);
     setCleanMsg(null);
     try {
-      const res = await window.aidclaude.jobs.dropAllOrphanTables();
+      const res = await window.aida.jobs.dropAllOrphanTables();
       setCleanMsg(`✓ ${res.dropped}개 테이블 삭제 완료`);
       setOrphanGroups([]);
     } catch (e) {
@@ -377,7 +377,7 @@ export function DataSourcePanel() {
 
   async function handleAdd() {
     if (!form.name.trim()) return;
-    const ds = await window.aidclaude.catalog.add({
+    const ds = await window.aida.catalog.add({
       name: form.name.trim(),
       type: form.type,
       config: form.config as MariaDbConfig | CsvConfig | JsonConfig | JsonlConfig | ShapefileConfig,
@@ -385,21 +385,21 @@ export function DataSourcePanel() {
     setSources([...sources, ds]);
     setForm(DEFAULT_FORM);
     setAdding(false);
-    if (activeJobId) await window.aidclaude.jobs.refreshSources(activeJobId);
+    if (activeJobId) await window.aida.jobs.refreshSources(activeJobId);
   }
 
   async function handleRemove(id: string) {
     if (schemaPopup?.sourceId === id) setSchemaPopup(null);
-    await window.aidclaude.catalog.remove(id);
+    await window.aida.catalog.remove(id);
     setSources(sources.filter((s) => s.id !== id));
-    if (activeJobId) await window.aidclaude.jobs.refreshSources(activeJobId);
+    if (activeJobId) await window.aida.jobs.refreshSources(activeJobId);
   }
 
   async function handlePreview(id: string) {
     try {
       const ds = sources.find((s) => s.id === id);
       const limit = 500;
-      const result = await window.aidclaude.catalog.previewData(id, limit);
+      const result = await window.aida.catalog.previewData(id, limit);
       openCenterTab({
         id: `src:${id}`,
         title: ds?.name ?? result.title,
@@ -421,7 +421,7 @@ export function DataSourcePanel() {
     const rect = e.currentTarget.getBoundingClientRect();
     if (!schemas.has(id)) {
       try {
-        const schema = await window.aidclaude.catalog.getSchema(id);
+        const schema = await window.aida.catalog.getSchema(id);
         setSchema(id, schema);
       } catch (err) {
         alert(`스키마 조회 실패: ${(err as Error).message}`);

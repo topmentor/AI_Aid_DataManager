@@ -1,0 +1,387 @@
+/**
+ * Custom Alert Module CSS
+ * 프로젝트 전역에서 사용 가능한 커스텀 알림 스타일
+ */
+
+/* Custom Alert Popup Styles */
+.custom-alert-popup {
+    position: fixed;
+    width: 380px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 12px;
+    padding: 35px 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+    animation: customAlertFadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+@keyframes customAlertFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.custom-alert-popup_content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.custom-alert-popup_icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: bold;
+    position: relative;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    animation: iconPulse 0.6s ease-out;
+}
+
+@keyframes iconPulse {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.custom-alert-popup_icon.error {
+    background: linear-gradient(135deg, #ff5252 0%, #c62828 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(198, 40, 40, 0.4);
+}
+
+.custom-alert-popup_icon.info {
+    background: linear-gradient(135deg, #42a5f5 0%, #1565c0 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(21, 101, 192, 0.4);
+}
+
+.custom-alert-popup_icon.success {
+    background: linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(46, 125, 50, 0.4);
+    animation: iconPulse 0.6s ease-out, successCheckmark 0.8s ease-out 0.3s;
+}
+
+@keyframes successCheckmark {
+    0%, 100% {
+        transform: scale(1);
+    }
+    25% {
+        transform: scale(1.15) rotate(-5deg);
+    }
+    50% {
+        transform: scale(1.1) rotate(5deg);
+    }
+    75% {
+        transform: scale(1.15) rotate(-3deg);
+    }
+}
+
+.custom-alert-popup_message {
+    text-align: center;
+    font-size: 1.15rem;
+    color: #2c3e50;
+    word-break: keep-all;
+    line-height: 1.6;
+    font-weight: 500;
+    margin-top: 5px;
+    white-space: pre-line;
+}
+
+.custom-alert-popup_buttonGroup {
+    width: 100%;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* 확인 버튼 기본 스타일 (버튼 하나만 있을 때 100% 너비) */
+.custom-alert-popup_confirmBtn {
+    width: 100%;
+    border: none;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #1A2A6C 0%, #2a3d7a 100%);
+    color: #FFD700;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    font-family: 'GodoM', sans-serif;
+    box-shadow: 0 4px 12px rgba(26, 42, 108, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.custom-alert-popup_confirmBtn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.custom-alert-popup_confirmBtn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.custom-alert-popup_confirmBtn:hover {
+    background: linear-gradient(135deg, #25357d 0%, #3a4d8a 100%);
+    box-shadow: 0 6px 16px rgba(26, 42, 108, 0.4);
+    transform: translateY(-2px);
+}
+
+.custom-alert-popup_confirmBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(26, 42, 108, 0.3);
+}
+
+/* 취소 버튼이 있을 때 (confirm 다이얼로그) - 확인 버튼 너비를 48%로 조정 */
+.custom-alert-popup_buttonGroup .custom-alert-popup_cancelBtn ~ .custom-alert-popup_confirmBtn {
+    width: 48%;
+    margin: 0;
+}
+
+.custom-alert-popup_cancelBtn {
+    width: 48%;
+    border: 2px solid #e0e0e0;
+    padding: 14px 24px;
+    background-color: #fff;
+    color: #555;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    font-family: 'GodoM', sans-serif;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.custom-alert-popup_cancelBtn:hover {
+    background-color: #f8f9fa;
+    border-color: #bdbdbd;
+    color: #333;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.custom-alert-popup_cancelBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+}
+
+.custom-alert-popup.hidden,
+.custom-alert-overlay.hidden {
+    display: none;
+}
+
+/* 비밀번호 입력 다이얼로그 스타일 */
+.custom-password-dialog-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    z-index: 9998 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+    border-radius: 12px !important;
+    padding: 30px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    width: 400px !important;
+    max-width: 90% !important;
+    z-index: 9999 !important;
+    animation: passwordDialogFadeIn 0.3s ease-out !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+}
+
+@keyframes passwordDialogFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-header {
+    margin-bottom: 20px !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-header h3 {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 1.3rem !important;
+    color: #2c3e50 !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    text-align: left !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-body {
+    margin-bottom: 25px !important;
+    margin-top: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-body label {
+    display: block !important;
+    margin-bottom: 10px !important;
+    margin-top: 0 !important;
+    font-size: 0.95rem !important;
+    color: #555 !important;
+    font-weight: 500 !important;
+    width: 100% !important;
+    text-align: left !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-input,
+.custom-password-dialog-overlay input.custom-password-dialog-input,
+.custom-password-dialog-overlay input[type="password"].custom-password-dialog-input {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    border: 2px solid #e0e0e0 !important;
+    border-radius: 6px !important;
+    font-size: 1rem !important;
+    transition: all 0.3s ease !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    display: block !important;
+    background-color: #fff !important;
+    color: #333 !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-input:focus,
+.custom-password-dialog-overlay input.custom-password-dialog-input:focus {
+    outline: none !important;
+    border-color: #1A2A6C !important;
+    box-shadow: 0 0 0 3px rgba(26, 42, 108, 0.1) !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-footer {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-btn,
+.custom-password-dialog-overlay button.custom-password-dialog-btn {
+    padding: 12px 24px !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    font-family: 'GodoM', sans-serif !important;
+    margin: 0 !important;
+    min-width: 80px !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    text-align: center !important;
+    line-height: 1.5 !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-btn.cancel,
+.custom-password-dialog-overlay button.custom-password-dialog-btn.cancel {
+    background-color: #fff !important;
+    color: #555 !important;
+    border: 2px solid #e0e0e0 !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-btn.cancel:hover,
+.custom-password-dialog-overlay button.custom-password-dialog-btn.cancel:hover {
+    background-color: #f8f9fa !important;
+    border-color: #bdbdbd !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-btn.confirm,
+.custom-password-dialog-overlay button.custom-password-dialog-btn.confirm {
+    background: linear-gradient(135deg, #1A2A6C 0%, #2a3d7a 100%) !important;
+    color: #FFD700 !important;
+    box-shadow: 0 4px 12px rgba(26, 42, 108, 0.3) !important;
+}
+
+.custom-password-dialog-overlay .custom-password-dialog-btn.confirm:hover,
+.custom-password-dialog-overlay button.custom-password-dialog-btn.confirm:hover {
+    background: linear-gradient(135deg, #25357d 0%, #3a4d8a 100%) !important;
+    box-shadow: 0 6px 16px rgba(26, 42, 108, 0.4) !important;
+    transform: translateY(-2px) !important;
+}
+
+
+
+
+
+
+
+
+

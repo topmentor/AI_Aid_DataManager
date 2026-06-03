@@ -1054,20 +1054,93 @@ code {
   overflow: hidden;
 }
 .pw-left {
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #252525;
   min-width: 0;
 }
+.pw-settings-btn {
+  flex: 0 0 auto;
+  border: none;
+  border-top: 1px solid #333;
+  background: #2d2d2d;
+  color: #ddd;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+.pw-settings-btn:hover { background: #37373d; }
 .pw-center {
   overflow: hidden;
   min-width: 0;
 }
 .pw-right {
   display: grid;
-  grid-template-rows: var(--pw-chat-ratio, 55%) 4px 1fr;
+  grid-template-rows: var(--pw-term-ratio, 60%) 4px 1fr;
   overflow: hidden;
   min-width: 0;
 }
+
+/* ── Agent Terminal Panel ── */
+.term-panel { display: flex; flex-direction: column; height: 100%; background: #1e1e1e; color: #d4d4d4; min-height: 0; }
+.term-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #333; background: #252526; font-size: 13px; }
+.term-form { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.term-row { display: flex; gap: 16px; font-size: 13px; }
+.term-hint { font-size: 12px; color: #9aa0a6; line-height: 1.4; }
+.term-actions { display: flex; align-items: center; gap: 10px; }
+.term-status { font-size: 12px; color: #9aa0a6; }
+.term-status-bar { padding: 4px 10px; border-top: 1px solid #333; }
+.term-xterm { flex: 1; min-height: 0; padding: 4px; overflow: hidden; }
+.term-btn { padding: 5px 12px; border-radius: 4px; border: 1px solid #3a3d41; background: #333; color: #eee; cursor: pointer; font-size: 13px; }
+.term-btn-primary { background: #0e639c; border-color: #0e639c; }
+.term-btn-ghost { background: transparent; }
+.term-badge { font-size: 11px; padding: 1px 7px; border-radius: 8px; }
+.term-badge-ok { background: #1f3d1f; color: #7fd77f; }
+.term-badge-no { background: #4a2020; color: #f08a8a; }
+.term-install { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #333; padding-top: 10px; margin-top: 4px; }
+.term-install-input { background: #2a2a2a; border: 1px solid #3a3d41; color: #ddd; padding: 5px 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
+
+/* ── SQL Panel ── */
+.sql-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; background: #1e1e1e; color: #d4d4d4; }
+.sql-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #333; background: #252526; font-size: 13px; }
+.sql-hint { color: #9aa0a6; font-size: 11px; flex: 1; }
+.sql-hint code { background: #333; padding: 0 4px; border-radius: 3px; }
+.sql-run { padding: 4px 14px; border-radius: 4px; border: 1px solid #0e639c; background: #0e639c; color: #fff; cursor: pointer; font-size: 13px; }
+.sql-run:disabled { opacity: 0.5; cursor: default; }
+.sql-editor { flex: 1; min-height: 0; }
+.sql-status { padding: 4px 10px; border-top: 1px solid #333; font-size: 12px; color: #9aa0a6; }
+.sql-hist-wrap { position: relative; }
+.sql-hist-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid #3a3d41; background: #333; color: #ddd; cursor: pointer; font-size: 12px; }
+.sql-hist-dropdown { position: absolute; right: 0; top: 100%; margin-top: 4px; width: 360px; max-height: 320px; overflow-y: auto; background: #252526; border: 1px solid #3a3d41; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 50; display: flex; flex-direction: column; }
+.sql-hist-empty { padding: 10px; color: #9aa0a6; font-size: 12px; }
+.sql-hist-item { text-align: left; padding: 7px 10px; background: none; border: none; border-bottom: 1px solid #2d2d2d; color: #ddd; cursor: pointer; font-family: Consolas, monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sql-hist-item:hover { background: #37373d; }
+.sql-hist-clear { text-align: center; padding: 7px; background: #2d2d2d; border: none; color: #f08a8a; cursor: pointer; font-size: 12px; }
+.sql-hist-clear:hover { background: #3a2020; }
+
+/* ── Settings Modal ── */
+.sm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.sm-modal { width: 520px; max-width: 92vw; background: #252526; color: #ddd; border: 1px solid #3a3d41; border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+.sm-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #333; font-size: 15px; }
+.sm-x { background: none; border: none; color: #aaa; font-size: 20px; cursor: pointer; line-height: 1; }
+.sm-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.sm-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.sm-field > span { font-weight: 600; }
+.sm-help { color: #9aa0a6; font-size: 11px; }
+.sm-row { display: flex; gap: 8px; }
+.sm-field input { background: #1e1e1e; border: 1px solid #3a3d41; color: #ddd; padding: 6px 8px; border-radius: 4px; font-size: 13px; flex: 1; }
+.sm-row button { padding: 6px 12px; border: 1px solid #3a3d41; background: #333; color: #eee; border-radius: 4px; cursor: pointer; }
+.sm-note { color: #9aa0a6; font-size: 11px; }
+.sm-font-row { align-items: center; }
+.sm-font-select { flex: 1; background: #1e1e1e; border: 1px solid #3a3d41; color: #ddd; padding: 6px 8px; border-radius: 4px; font-size: 13px; }
+.sm-font-size { flex: 0 0 64px; }
+.sm-unit { color: #9aa0a6; font-size: 12px; }
+.sm-footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #333; }
+.sm-status { flex: 1; font-size: 12px; color: #7fd77f; }
+.sm-footer button { padding: 6px 14px; border: 1px solid #3a3d41; background: #333; color: #eee; border-radius: 4px; cursor: pointer; }
+.sm-save { background: #0e639c; border-color: #0e639c; color: #fff; }
 
 /* ── Resize handles ── */
 .pw-vhandle {
@@ -1532,7 +1605,7 @@ code {
 .dsp-clean-group-label:first-child { border-top: none; }
 
 /* ── DataSourcePanel ─────────────────────────────────────────────────────── */
-.dsp-root { padding: 8px; overflow-y: auto; height: 100%; font-size: 13px; display: flex; flex-direction: column; gap: 0; }
+.dsp-root { padding: 8px; overflow-y: auto; flex: 1; min-height: 0; font-size: 13px; display: flex; flex-direction: column; gap: 0; }
 .dsp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .dsp-title { font-size: 12px; color: #c8c8c8; font-weight: 600; }
 .dsp-header-actions { display: flex; gap: 4px; align-items: center; }
