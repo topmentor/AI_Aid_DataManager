@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "../store/appStore";
 
+// 터미널용 모노스페이스 폰트 후보
+const FONT_OPTIONS = [
+  "Consolas, 'D2Coding', monospace",
+  "'D2Coding', monospace",
+  "'Cascadia Code', monospace",
+  "'Cascadia Mono', monospace",
+  "Consolas, monospace",
+  "'Courier New', monospace",
+  "'Nanum Gothic Coding', monospace",
+  "monospace",
+];
+
 /** 설정 모달 — 애플리케이션 기본 경로(작업 공간) + AI 터미널 폰트. */
 export function SettingsModal() {
   const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
@@ -70,17 +82,22 @@ export function SettingsModal() {
               </div>
             </label>
 
-            <label className="sm-field">
+            <div className="sm-field">
               <span>AI 터미널 폰트</span>
-              <input value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}
-                placeholder="Consolas, 'D2Coding', monospace" />
-            </label>
-
-            <label className="sm-field">
-              <span>AI 터미널 폰트 크기 (px)</span>
-              <input type="number" min={8} max={40} value={fontSize}
-                onChange={(e) => setFontSize(e.target.value)} />
-            </label>
+              <div className="sm-row sm-font-row">
+                <select className="sm-font-select" title="AI 터미널 폰트" value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
+                  {!FONT_OPTIONS.includes(fontFamily) && fontFamily && (
+                    <option value={fontFamily}>{fontFamily} (현재)</option>
+                  )}
+                  {FONT_OPTIONS.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+                <input className="sm-font-size" type="number" min={8} max={40} value={fontSize}
+                  onChange={(e) => setFontSize(e.target.value)} title="폰트 크기 (px)" />
+                <span className="sm-unit">px</span>
+              </div>
+            </div>
 
             <div className="sm-note">경로 변경은 이후 새로 시작하는 작업부터 적용됩니다.</div>
           </div>

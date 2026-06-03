@@ -1125,6 +1125,10 @@ code {
 .sm-field input { background: #1e1e1e; border: 1px solid #3a3d41; color: #ddd; padding: 6px 8px; border-radius: 4px; font-size: 13px; flex: 1; }
 .sm-row button { padding: 6px 12px; border: 1px solid #3a3d41; background: #333; color: #eee; border-radius: 4px; cursor: pointer; }
 .sm-note { color: #9aa0a6; font-size: 11px; }
+.sm-font-row { align-items: center; }
+.sm-font-select { flex: 1; background: #1e1e1e; border: 1px solid #3a3d41; color: #ddd; padding: 6px 8px; border-radius: 4px; font-size: 13px; }
+.sm-font-size { flex: 0 0 64px; }
+.sm-unit { color: #9aa0a6; font-size: 12px; }
 .sm-footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #333; }
 .sm-status { flex: 1; font-size: 12px; color: #7fd77f; }
 .sm-footer button { padding: 6px 14px; border: 1px solid #3a3d41; background: #333; color: #eee; border-radius: 4px; cursor: pointer; }
