@@ -16,6 +16,9 @@ extraResources:
     to: server/aida-server.jar
   - from: ../server/web
     to: server/web
+  # 동봉 JRE (build.ps1의 jlink 산출물 app/.jre) → resources/jre
+  - from: .jre
+    to: jre
 
 win:
   target:

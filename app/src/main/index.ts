@@ -20,12 +20,12 @@ function dataHome(): string {
 
 async function startBackend(): Promise<ServerHandle> {
   const projectRoot = path.resolve(__dirname, "../../.."); // app/out/main → repo root
-  const { jar, web } = resolvePaths({
+  const { jar, web, javaBin } = resolvePaths({
     isDev: isDev(),
     resourcesPath: process.resourcesPath,
     projectRoot,
   });
-  return launchServer({ jar, web, home: dataHome() });
+  return launchServer({ jar, web, javaBin, home: dataHome() });
 }
 
 function createWindow(serverUrl: string) {

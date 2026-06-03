@@ -93,7 +93,7 @@ AIDA/
 - `.\build.ps1 -NoPackage` — 인스톨러 없이 jar + 렌더러 빌드까지만
 - `.\build.ps1 -SkipSmoke` — jar 빌드 시 스모크 생략
 
-> 패키지 앱은 시스템 **Java 17**이 필요합니다(JRE 미번들). 백엔드 jar와 web 리소스는 인스톨러의 `resources/server/`에 동봉됩니다.
+> 패키지 앱은 **JRE를 동봉**합니다(`jlink` 산출물 → `resources/jre`). 백엔드 jar(내장 Tomcat 포함)·web 리소스도 `resources/server/`에 동봉되어, **시스템 Java 설치 없이 독립 실행**됩니다. (JRE 동봉을 생략하려면 `.\build.ps1 -NoJre` → 이 경우 시스템 Java 17 필요)
 
 ---
 

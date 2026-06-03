@@ -23,19 +23,24 @@ export function findFreePort(): Promise<number> {
   });
 }
 
-/** 개발/배포 모드에 따라 jar / web / java 경로를 해석한다. */
+/** 개발/배포 모드에 따라 jar / web / javaBin 경로를 해석한다. */
 export function resolvePaths(opts: { isDev: boolean; resourcesPath: string; projectRoot: string }) {
   const { isDev, resourcesPath, projectRoot } = opts;
   if (isDev) {
     return {
       jar: path.join(projectRoot, "server", "target", "aida-server.jar"),
       web: path.join(projectRoot, "server", "web"),
+      javaBin: "java", // 개발: 시스템 Java
     };
   }
   // 배포: electron-builder extraResources 에 동봉
+  const exe = process.platform === "win32" ? "java.exe" : "java";
+  const bundledJava = path.join(resourcesPath, "jre", "bin", exe);
   return {
     jar: path.join(resourcesPath, "server", "aida-server.jar"),
     web: path.join(resourcesPath, "server", "web"),
+    // 동봉 JRE가 있으면 사용, 없으면 시스템 Java로 폴백
+    javaBin: fs.existsSync(bundledJava) ? bundledJava : "java",
   };
 }
 

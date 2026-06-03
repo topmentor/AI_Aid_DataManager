@@ -988,7 +988,14 @@ A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정
 - 공통 로직은 `tools/_common.ps1`(dot-source), jar 빌드는 `server/build.ps1` 재사용.
 
 **Electron 패키징 추가**: `app/electron-builder.yml`(appId `com.ithows.aida`, productName `AIDA`, NSIS), `extraResources`로 `aida-server.jar`+`web`를 `resources/server/`에 동봉 → 패키지 앱이 시스템 Java로 백엔드 기동(server-launcher 프로덕션 경로와 일치). 검증: `AIDA-0.1.0-setup.exe`(184MB) 생성 + 동봉 리소스 확인.
-비고: JRE 미번들(시스템 Java 17 필요). 코드사이닝 미적용.
+비고: 코드사이닝 미적용.
+
+### JRE 동봉 (2026-06-03)
+패키지 앱이 시스템 Java 없이 독립 실행되도록 **JRE를 번들**:
+- `build.ps1`이 `jlink`(--add-modules ALL-MODULE-PATH, strip-debug/compress)로 `app/.jre`(~77MB) 생성 → electron-builder `extraResources`로 `resources/jre` 동봉.
+- `server-launcher.resolvePaths`: 배포 모드에서 `resources/jre/bin/java`가 있으면 사용(없으면 시스템 `java` 폴백).
+- `.\build.ps1 -NoJre`로 동봉 생략 가능.
+- 검증: 동봉 JRE로 SSF jar 구동 + 헬스 OK, 인스톨러(`AIDA-0.1.0-setup.exe` ≈ 240MB)에 `resources/jre/bin/java.exe` 포함 확인.
 
 ## 프로젝트 이름 변경: AidClaude → AIDA (AI Data Analyst) — 2026-06-03
 
