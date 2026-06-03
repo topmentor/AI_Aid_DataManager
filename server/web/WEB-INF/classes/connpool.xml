@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf8" standalone="no"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <entry key="database">mysql</entry>
+    
+    <entry key="url">jdbc:mysql://127.0.0.1:3307/collectdata?characterEncoding=utf8mb4&amp;useUnicode=true&amp;useSSL=false</entry>
+    <entry key="db2Url">jdbc:mysql://127.0.0.1:3306/collectdata?characterEncoding=utf8&amp;useSSL=false</entry>
+    
+    <!--<entry key="url">jdbc:mysql://127.0.0.1:3306/omnifls?characterEncoding=utf8&amp;useSSL=false</entry>-->
+    <!--<entry key="db2Url">jdbc:mysql://127.0.0.1:3307/omnifls?characterEncoding=utf8&amp;useSSL=false</entry>-->
+    
+    <entry key="maxActive">100</entry>
+    <entry key="minIdle">3</entry>    
+    <entry key="maxIdle">30</entry>    
+    <entry key="removeAbandonedTimeout">60</entry>
+    <entry key="initialSize">2</entry>    
+</properties>

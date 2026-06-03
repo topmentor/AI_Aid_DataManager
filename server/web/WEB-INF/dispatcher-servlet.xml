@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <template id="main" top="/template/main/top.jsp" bottom="/template/main/bottom.jsp" templatePage="/template/main/template.jsp" />
+</beans>

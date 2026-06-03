@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8' ?> 
+<!-- was: <?xml version="1.0" encoding="EUC-KR" standalone="no"?> -->
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <comment>ITHows Properties </comment>
+    <entry key="site_domain">[SSF2026 Location]</entry>
+
+    
+    <entry key="temp_dir">temp/</entry>
+    <entry key="user_image_dir">images</entry>
+    <entry key="resource_dir">resource</entry>
+    <entry key="config_image_upload_url">uploadImages/</entry>
+    <entry key="context_path">SSF2026/</entry>
+    <entry key="context_dir">/locationService/tomcat/tomcatweb/webapps/SSF2026/</entry>
+    <entry key="context_linux_dir">/locationService/tomcat/tomcatweb/webapps/SSF2026/</entry>
+    <entry key="context_win_dir">C:\\03_work\\SSF_2026\\build\\web\\</entry>
+    <entry key="config_file_upload_url">uploadFiles/</entry>
+    <entry key="config_devlog_path">devlogs/</entry>
+    <entry key="config_testdata_url">data/</entry>
+    <entry key="config_errorlog_path">errorlogs/</entry>
+
+    <!-- python_script_dir / python_temp_dir 은 context_win_dir / context_dir 하위 상대 경로.
+         실제 절대 경로 = AppConfig.getContextPath() + 아래 값  (OS 에 따라 자동 분기) -->
+    <entry key="python_script_dir">python_process/</entry>
+    <entry key="python_temp_dir">python_process/temp/</entry>
+    <entry key="python_command">C:\\Python310\\python.exe</entry>
+    
+    <!-- python 프로브 타임아웃(초). 미설정 시 기본 5초. -->
+    <entry key="python_version_timeout_sec">20</entry>
+    
+    <entry key="common_api_key">sox_api_key_2018</entry>
+
+       
+
+</properties>

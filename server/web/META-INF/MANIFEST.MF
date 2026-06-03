@@ -1,0 +1,22 @@
+Manifest-Version: 1.0
+Main-Class: 
+Class-Path: javax.ejb.jar javax.jms.jar javax.servlet.jar javax.resource
+ .jar javax.annotation.jar javax.persistence.jar javax.servlet.jsp.jar j
+ avax.transaction.jar javax.servlet.jsp.jstl.jar javax.websocket-api-1.1
+ .jar javax.websocket-client-api-1.1.jar mail.jar engine.jar ojdbc6.jar 
+ xmlrpc.jar Filters.jar jai_core.jar jstl-1.2.jar jai_codec.jar java-jso
+ n.jar engine_dev.jar engine_etri.jar tomcat-dbcp.jar tomcat-jdbc.jar gu
+ ava-11.0.2.jar SOXGeoEngine.jar zip4j-2.11.5.jar ezmorph-1.0.6.jar json
+ -20171018.jar commons-io-1.4.jar commons-io-2.6.jar commons-cli-1.4.jar
+  jts-core-1.16.1.jar slf4j-api-1.7.5.jar commons-dbcp-1.4.jar commons-l
+ ang-2.5.jar slf4j-api-1.7.26.jar json-simple-1.1.1.jar log4j-core-2.16.
+ 0.jar log4j-core-2.17.1.jar reflections-0.9.8.jar commons-codec-1.12.ja
+ r commons-pool-1.5.4.jar json-lib-2.3-jdk15.jar slf4j-jdk14-1.7.26.jar 
+ tomcat-juli-7.0.39.jar commons-logging-1.2.jar commons-math3-3.6.1.jar 
+ jackson-core-2.15.2.jar javassist-3.12.1.GA.jar svgSalamander-v1.1.1.ja
+ r commons-compress-1.19.jar proj4j-1.0.1-SNAPSHOT.jar commons-beanutils
+ -1.8.3.jar jackson-databind-2.15.2.jar commons-collections4-4.3.jar com
+ mons-fileupload-1.3.1.jar mariadb-java-client-2.4.4.jar com-google-gson
+ -RELEASE111.jar jackson-annotations-2.15.2.jar mysql-connector-java-5.1
+ .47-bin.jar jackson-module-jsonSchema-2.15.2.jar
+

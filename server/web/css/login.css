@@ -1,0 +1,236 @@
+@font-face {
+    font-family: 'GodoM';
+    src: url('../resource/fonts/GodoM.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'GodoB';
+    src: url('../resource/fonts/GodoB.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    font-family: 'GodoM';
+    color: #333333;
+}
+
+body{
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background-image: url('../images/bg.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+.login-popup{
+    position: fixed;
+    width: 400px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 50;
+    background-color: white;
+    border-radius: 8px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.login-popup_img{
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.login-popup_img img{
+    width: 30%;
+}
+
+.login-popup-inputGroup{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 20px;
+    gap: 15px;
+}
+
+.login-popup_idInput,
+.login-popup_pwInput{
+    width: 100%;
+}
+
+.login-popup_idInput input,
+.login-popup_pwInput input{
+    width: 100%;
+    border: 1px solid #CBCBCB;
+    padding: 12px;
+    border-radius: 3px;
+    font-size: 1.2rem;
+}
+
+.login-popup_idInput input:focus,
+.login-popup_pwInput input:focus {
+    outline: none;
+    border-color: #1A2A6C;
+}
+
+.login-popup-buttonGroup{
+    display: flex;
+    width: 100%;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.login-popup_loginBtn,
+.login-popup_signinBtn{
+    flex: 1;
+}
+
+.login-popup_loginBtn button,
+.login-popup_signinBtn button{
+    width: 100%;
+    border: 1px solid #1A2A6C;
+    padding: 12px;
+    background-color: #1A2A6C;
+    color: #FFD700;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: background-color 0.3s;
+}
+
+.login-popup_loginBtn button:hover,
+.login-popup_signinBtn button:hover{
+    background-color: #25357d;
+}
+
+/* Signup Popup Styles */
+.signup-popup{
+    position: fixed;
+    width: 400px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    background-color: white;
+    border-radius: 8px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.signup-popup_closeBtn{
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #CBCBCB;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.signup-popup_closeBtn:hover{
+    color: #333333;
+}
+
+.signup-popup_img{
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.signup-popup_img img{
+    width: 30%;
+}
+
+.signup-popup-inputGroup{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 10px;
+    gap: 15px;
+}
+
+.signup-popup_idInput,
+.signup-popup_pwInput,
+.signup-popup_pwConfirmInput,
+.signup-popup_nameInput{
+    width: 100%;
+}
+
+.signup-popup_idInput input,
+.signup-popup_pwInput input,
+.signup-popup_pwConfirmInput input,
+.signup-popup_nameInput input{
+    width: 100%;
+    border: 1px solid #CBCBCB;
+    padding: 12px;
+    border-radius: 3px;
+    font-size: 1.2rem;
+}
+
+.signup-popup_idInput input:focus,
+.signup-popup_pwInput input:focus,
+.signup-popup_pwConfirmInput input:focus,
+.signup-popup_nameInput input:focus {
+    outline: none;
+    border-color: #1A2A6C;
+}
+
+.signup-popup-buttonGroup{
+    display: flex;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.signup-popup_signupBtn{
+    width: 100%;
+}
+
+.signup-popup_signupBtn button{
+    width: 100%;
+    border: 1px solid #1A2A6C;
+    padding: 12px;
+    background-color: #1A2A6C;
+    color: #FFD700;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: background-color 0.3s;
+}
+
+.signup-popup_signupBtn button:hover{
+    background-color: #25357d;
+}
+
+.overlay{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+}
+
+.hidden{
+    display: none;
+}

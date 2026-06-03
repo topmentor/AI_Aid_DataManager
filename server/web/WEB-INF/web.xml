@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 개념 객체와 Java 객체와의 연결을 이곳에서 한다.  -->
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+    <session-config>
+        <session-timeout>180</session-timeout>
+    </session-config>
+    <welcome-file-list>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
+    <servlet>
+        <servlet-name>DispatcherServlet</servlet-name>
+        <servlet-class>com.ithows.base.DispatcherServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>DispatcherServlet</servlet-name>
+        <url-pattern>*.do</url-pattern>
+    </servlet-mapping>
+
+    <!-- Swagger UI & OpenAPI JSON -->
+    <servlet>
+        <servlet-name>SwaggerServlet</servlet-name>
+        <servlet-class>com.ithows.base.SwaggerServlet</servlet-class>
+        <load-on-startup>2</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>SwaggerServlet</servlet-name>
+        <url-pattern>/docs/*</url-pattern>
+    </servlet-mapping>
+
+     <servlet>
+        <servlet-name>AppConfig</servlet-name>
+        <servlet-class>com.ithows.AppConfig</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>    
+    
+    <filter>
+        <filter-name>Character Encoding</filter-name>
+        <filter-class>com.ithows.CharacterEncodingFilter</filter-class>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>UTF-8</param-value>
+        </init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>Character Encoding</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!-- SecurityFilter: CSRF, XSS, Rate Limiting, HTTP 보안 헤더 -->
+    <filter>
+        <filter-name>SecurityFilter</filter-name>
+        <filter-class>com.ithows.base.SecurityFilter</filter-class>
+        <init-param>
+            <param-name>rateLimitMaxRequests</param-name>
+            <param-value>100</param-value>
+        </init-param>
+        <init-param>
+            <param-name>rateLimitWindowMs</param-name>
+            <param-value>60000</param-value>
+        </init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>SecurityFilter</filter-name>
+        <url-pattern>*.do</url-pattern>
+    </filter-mapping>
+    
+    
+    <!--        <listener>
+        <listener-class>com.ithows.base.SOXServletContextListener</listener-class>
+    </listener>-->
+    
+    <listener>
+        <listener-class>com.ithows.base.SOXSessionListener</listener-class>
+    </listener>
+    
+</web-app>
