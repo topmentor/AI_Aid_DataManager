@@ -917,3 +917,35 @@ PowerShell 스모크(`server/smoke/*.ps1`, `all.ps1`) — settings/catalog/schem
 - **B**: Electron 셸 + Claude CLI IPC 이식 + jar 기동(`-Daidclaude.home`/포트 전달) + 네이티브 다이얼로그.
 - **C**: webapp(Vanilla TS) — React 컴포넌트 재작성 + HTTP API 클라이언트.
 - **D**: setup.ps1 통합(Maven 빌드 + jar + Electron 실행/패키징).
+
+---
+
+## Electron 통합 + 전송 전환 + 빌드 (B·C·D) — 2026-06-03
+
+A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정: **C는 React 유지 + 전송만 HTTP**(전면 재작성 대신 리스크 최소), **동적 빈 포트**.
+설계: [docs/superpowers/specs/2026-06-03-electron-webapp-integration-design.md](docs/superpowers/specs/2026-06-03-electron-webapp-integration-design.md)
+
+### B — Electron 셸
+- `app/src/main/services/server-launcher.ts` — 빈 포트 탐색 → `java -jar aidclaude-server.jar`(`-Daidclaude.home`/`-Dserver.port`/`-Dwebapp.base`) → `/api/checkHealth.do` 대기.
+- `app/src/main/services/ssf-client.ts` — main→SSF HTTP(getSettings/getJob/refreshJobSources/getSqlOptions/runJobAnalysis).
+- `claude-service.ts` 재작성 — DB/job-service/backup 의존 제거. 턴 전후를 SSF에 HTTP 위임(소스 갱신→스트리밍→옵션 판정→단일 옵션 시 runJobAnalysis), `job:update`로 상태 보고.
+- `main/index.ts` — 시작 시 백엔드 기동, `--server-url` 전달, Claude/dialog/export/files.open IPC만 유지(데이터 IPC 제거), 종료 시 java 정리.
+- 이관 완료된 9개 main 서비스 삭제(settings/catalog/schema/sqlite-loader/job/python/ast/system-prompt/backup).
+
+### C — 전송 전환 (React 불변)
+- `app/src/preload/api-client.ts` — `fetch(serverUrl + /api/*.do)` + SSF 봉투(`result/resultMap/resultList`) 언랩 → 기존 `window.aidclaude.*` 반환 형태로 매핑(Job.createdAt→string, schema sourceId 주입 등).
+- `preload/index.ts` — 데이터 네임스페이스는 HTTP, Claude/dialog/export/files.open/이벤트는 IPC. serverUrl은 `process.argv`에서 파싱.
+
+### D — 빌드/실행
+- `app/package.json` — 네이티브 의존성(better-sqlite3/mysql2/papaparse/shapefile) + electron-rebuild/postinstall 제거(네이티브 빌드 불필요). `test:integration` 스크립트 추가.
+- `setup.ps1` — Java17/Maven 확인 + SSF jar 빌드 단계 추가, 구식 better-sqlite3 리빌드 제거. `-Dev`는 Electron이 jar 자동 기동.
+
+### 검증
+- 타입체크(node+web) clean, `electron-vite build` 성공.
+- `app/test/integration.mjs` — **실제 api-client.ts(esbuild 번들)를 라이브 SSF에 대해** 19/19 통과(설정/카탈로그/스키마/job/SQL/DB/파일/소스저장, 한글·콤마 셀 포함).
+- 서버 스모크 스위트 회귀 ALL PASS.
+
+### 남은 사항
+- 배포 인스톨러(electron-builder `extraResources`로 jar+web 동봉, JRE 번들)는 미설정 — 개발 실행은 시스템 java 사용.
+- `ssf_skell/`이 git 미추적 상태(`server/pom.xml`이 `../ssf_skell/lib` 참조) → 신규 클론 빌드를 위해 ssf_skell 커밋 또는 필요한 lib jar를 server/로 이전 필요.
+- 실제 Electron GUI 구동 검증은 본 환경 제약으로 미수행(빌드·타입·HTTP 계약으로 대체 검증).
