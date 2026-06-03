@@ -89,7 +89,50 @@ public class JobController {
         if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
         String jobId = body.optString("jobId", "").trim();
         if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
+        ResultMap job = JobDAO.get(jobId);
+        if (job == null) return AcResp.error(request, "작업을 찾을 수 없습니다");
+        java.io.File analyze = new java.io.File(String.valueOf(job.get("workspace_dir")), "analyze.py");
+        if (analyze.exists()) {
+            return AcResp.map(request, com.ithows.aidclaude.PythonRunner.runAnalysis(jobId));
+        }
         return AcResp.map(request, com.ithows.aidclaude.SqlRunner.runQueryFile(jobId));
+    }
+
+    @ControllerMethodInfo(id = "/api/getSqlOptions.do")
+    @ApiInfo(summary = "SQL 옵션 조회", description = "query.sql의 -- [옵션 N] 마커를 파싱합니다.", tag = "Jobs", method = "POST")
+    public String getSqlOptions(HttpSession session, HttpServletRequest request,
+                                HttpServletResponse response, Object command) {
+        JSONObject body = bodyOrNull(request);
+        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        String jobId = body.optString("jobId", "").trim();
+        if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
+        return AcResp.list(request, com.ithows.aidclaude.JobService.sqlOptionsForJob(jobId));
+    }
+
+    @ControllerMethodInfo(id = "/api/listQueryHistory.do")
+    @ApiInfo(summary = "쿼리 히스토리 목록", tag = "Jobs", method = "POST")
+    public String listQueryHistory(HttpSession session, HttpServletRequest request,
+                                   HttpServletResponse response, Object command) {
+        JSONObject body = bodyOrNull(request);
+        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        String jobId = body.optString("jobId", "").trim();
+        if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
+        return AcResp.list(request, com.ithows.aidclaude.JobService.queryHistory(jobId));
+    }
+
+    @ControllerMethodInfo(id = "/api/listOrphanTables.do")
+    @ApiInfo(summary = "고아 테이블 목록", description = "모든 job DB의 미사용 테이블을 조회합니다.", tag = "Jobs", method = "GET")
+    public String listOrphanTables(HttpSession session, HttpServletRequest request,
+                                   HttpServletResponse response, Object command) {
+        return AcResp.list(request, com.ithows.aidclaude.OrphanService.list());
+    }
+
+    @ControllerMethodInfo(id = "/api/dropOrphanTables.do")
+    @ApiInfo(summary = "고아 테이블 삭제", tag = "Jobs", method = "POST")
+    public String dropOrphanTables(HttpSession session, HttpServletRequest request,
+                                   HttpServletResponse response, Object command) {
+        int dropped = com.ithows.aidclaude.OrphanService.dropAll();
+        return AcResp.map(request, new JSONObject().put("dropped", dropped));
     }
 
     static List<String> strList(JSONArray a) {

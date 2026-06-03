@@ -104,6 +104,60 @@ public final class JobService {
         }
     }
 
+    /** query.sql의 {@code -- [옵션 N] 제목} 마커를 파싱해 옵션 목록 반환(2개 미만이면 빈 배열). */
+    public static JSONArray parseSqlOptions(String sql) {
+        JSONArray out = new JSONArray();
+        if (sql == null) return out;
+        java.util.regex.Pattern marker = java.util.regex.Pattern.compile("^--\\s*\\[옵션\\s*\\d+\\]\\s*(.*)");
+        String curTitle = null;
+        StringBuilder cur = new StringBuilder();
+        List<JSONObject> opts = new ArrayList<>();
+        for (String line : sql.split("\n", -1)) {
+            java.util.regex.Matcher m = marker.matcher(line);
+            if (m.find()) {
+                if (curTitle != null) {
+                    String s = cur.toString().trim();
+                    if (!s.isEmpty()) opts.add(new JSONObject().put("title", curTitle).put("sql", s));
+                }
+                String t = m.group(1).trim();
+                curTitle = t.isEmpty() ? ("옵션 " + (opts.size() + 1)) : t;
+                cur.setLength(0);
+            } else if (curTitle != null) {
+                cur.append(line).append("\n");
+            }
+        }
+        if (curTitle != null) {
+            String s = cur.toString().trim();
+            if (!s.isEmpty()) opts.add(new JSONObject().put("title", curTitle).put("sql", s));
+        }
+        if (opts.size() >= 2) for (JSONObject o : opts) out.put(o);
+        return out;
+    }
+
+    /** query.sql 옵션 파싱(파일에서 읽어). */
+    public static JSONArray sqlOptionsForJob(String jobId) {
+        ResultMap job = JobDAO.get(jobId);
+        if (job == null) return new JSONArray();
+        File qf = new File(String.valueOf(job.get("workspace_dir")), "query.sql");
+        if (!qf.exists()) return new JSONArray();
+        try {
+            String sql = new String(Files.readAllBytes(qf.toPath()), StandardCharsets.UTF_8);
+            return parseSqlOptions(sql);
+        } catch (Exception e) {
+            return new JSONArray();
+        }
+    }
+
+    /** history/query_NNN.sql 목록(최신순). */
+    public static JSONArray queryHistory(String jobId) {
+        JSONArray out = new JSONArray();
+        ResultMap job = JobDAO.get(jobId);
+        if (job == null) return out;
+        File dir = new File(String.valueOf(job.get("workspace_dir")));
+        for (String f : BackupService.listQueryHistory(dir)) out.put(f);
+        return out;
+    }
+
     public static JSONObject jobJson(ResultMap r) {
         JSONObject o = new JSONObject();
         if (r == null) return o;
