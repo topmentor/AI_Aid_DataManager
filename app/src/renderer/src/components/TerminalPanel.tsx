@@ -13,6 +13,7 @@ type AgentKind = "claude" | "codex";
  */
 export function TerminalPanel() {
   const sources = useAppStore((s) => s.sources);
+  const settings = useAppStore((s) => s.settings);
   const [agentKind, setAgentKind] = useState<AgentKind>("claude");
   const [running, setRunning] = useState(false);
   const [mode, setMode] = useState<"agent" | "install">("agent");
@@ -58,10 +59,12 @@ export function TerminalPanel() {
     requestAnimationFrame(() => {
       const el = containerRef.current;
       if (!el) return;
+      const fontFamily = settings?.termFontFamily || "Consolas, 'D2Coding', monospace";
+      const fontSize = Number(settings?.termFontSize) || 13;
       const term = new Terminal({
         cursorBlink: true,
-        fontFamily: "Consolas, 'D2Coding', monospace",
-        fontSize: 13,
+        fontFamily,
+        fontSize,
         theme: { background: "#1e1e1e", foreground: "#d4d4d4" },
       });
       const fit = new FitAddon();

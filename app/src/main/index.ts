@@ -121,3 +121,9 @@ ipcMain.handle(
     return result.canceled ? null : (result.filePaths[0] ?? null);
   }
 );
+
+ipcMain.handle("dialog:openDirectory", async () => {
+  if (!win) return null;
+  const result = await dialog.showOpenDialog(win, { properties: ["openDirectory", "createDirectory"] });
+  return result.canceled ? null : (result.filePaths[0] ?? null);
+});

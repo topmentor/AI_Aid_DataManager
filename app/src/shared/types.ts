@@ -78,4 +78,6 @@ export interface AppSettings {
   claudeBin: string;
   pythonBin: string;
   workspaceRoot: string;
+  termFontFamily?: string;
+  termFontSize?: string;
 }

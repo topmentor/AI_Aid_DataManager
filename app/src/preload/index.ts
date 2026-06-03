@@ -43,5 +43,6 @@ contextBridge.exposeInMainWorld("aida", {
   dialog: {
     openFile: (filters: { name: string; extensions: string[] }[]) =>
       ipcRenderer.invoke("dialog:openFile", filters),
+    openDirectory: () => ipcRenderer.invoke("dialog:openDirectory"),
   },
 });

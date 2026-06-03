@@ -949,6 +949,14 @@ A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정
 - 배포 인스톨러(electron-builder `extraResources`로 jar+web 동봉, JRE 번들)는 미설정 — 개발 실행은 시스템 java 사용.
 - 실제 Electron GUI 구동 검증은 본 환경 제약으로 미수행(빌드·타입·HTTP 계약으로 대체 검증).
 
+## 설정창 + SQL 에디터 패널 추가 — 2026-06-03
+
+- **설정창**: 왼쪽 패널 하단 `⚙ 설정` 버튼(`pw-settings-btn`) → `SettingsModal`. 항목: 애플리케이션 기본 경로(작업 공간: data.db·CLAUDE.md 저장 위치, 폴더 선택 `dialog:openDirectory` 추가), AI 터미널 폰트(패밀리/크기).
+  - 백엔드: `SettingsDAO` 기본값 `termFontFamily`/`termFontSize` 추가; `JobService.createJob`이 설정 `workspaceRoot`(없으면 데이터 홈) 하위 `jobs/`에 워크스페이스 생성.
+  - `AppSettings` 타입에 `termFontFamily?`/`termFontSize?` 추가. `TerminalPanel`이 설정 폰트로 xterm 생성. 시작 시 ProjectWindow가 설정을 store에 로드.
+- **SQL 에디터 패널**(`SqlPanel`, AI 터미널 아래 분할): Monaco SQL 에디터 + "실행"(Ctrl+Enter). 활성 작업의 data.db 대상(없으면 전체 소스로 작업 자동 생성). 입력 조회를 `DROP TABLE IF EXISTS result; CREATE TABLE result AS <쿼리>`로 materialize → `result` 테이블 생성 + CenterPanel에 `result` 탭(`db:<jobId>:result`, 기존 동작과 동일) 표시.
+- ProjectWindow 우측 = TerminalPanel(상) + SqlPanel(하) 분할 복원. 검증: 서버 빌드+스모크(10)+통합 19/19 + 앱 typecheck/build OK.
+
 ## 스크립트 정리 + Electron 패키지 빌드 — 2026-06-03
 
 루트 스크립트를 **3개로 정리**(기존 setup.ps1 / app·dev/build.ps1 / server/run.ps1 폐기):

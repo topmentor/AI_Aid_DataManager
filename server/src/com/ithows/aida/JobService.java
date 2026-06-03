@@ -4,6 +4,7 @@ import com.ithows.ResultMap;
 import com.ithows.aida.model.SourceRef;
 import com.ithows.dao.CatalogDAO;
 import com.ithows.dao.JobDAO;
+import com.ithows.dao.SettingsDAO;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +29,7 @@ public final class JobService {
     /** job 생성 후 job 메타(JSON: id/userRequest/status/workspaceDir/createdAt) 반환. */
     public static JSONObject createJob(String userRequest, List<String> sourceIds) throws Exception {
         String id = UUID.randomUUID().toString();
-        File jobDir = AidaContext.jobDir(id);
+        File jobDir = new File(workspaceJobsDir(), "job_" + id);
         jobDir.mkdirs();
         new File(jobDir, "output").mkdirs();
 
@@ -39,6 +40,15 @@ public final class JobService {
 
         JobDAO.insert(id, userRequest, "idle", jobDir.getAbsolutePath());
         return jobJson(JobDAO.get(id));
+    }
+
+    /** 작업 공간 jobs 디렉터리 = 설정 workspaceRoot(없으면 데이터 홈) / jobs. */
+    private static File workspaceJobsDir() {
+        String ws = SettingsDAO.getAll().get("workspaceRoot");
+        File root = (ws == null || ws.isBlank()) ? AidaContext.home() : new File(ws);
+        File jobs = new File(root, "jobs");
+        jobs.mkdirs();
+        return jobs;
     }
 
     /** 저장된 sourceIds로 data.db 재적재 + CLAUDE.md/data_helpers.py 갱신. */

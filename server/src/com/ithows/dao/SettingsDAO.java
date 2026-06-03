@@ -25,6 +25,8 @@ public class SettingsDAO {
         d.put("claudeBin", "claude");
         d.put("pythonBin", "python");
         d.put("workspaceRoot", AidaContext.home().getAbsolutePath());
+        d.put("termFontFamily", "Consolas, 'D2Coding', monospace");
+        d.put("termFontSize", "13");
         return d;
     }
 

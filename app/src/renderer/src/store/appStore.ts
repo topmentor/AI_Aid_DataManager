@@ -34,9 +34,12 @@ interface AppState {
   // Center panel tabs (VSCode-style)
   centerTabs: CenterTab[];
   activeCenterTabId: string | null;
+  // Settings modal
+  settingsOpen: boolean;
   // Actions
   setView: (v: "start" | "main") => void;
   setSettings: (s: AppSettings) => void;
+  setSettingsOpen: (open: boolean) => void;
   setSources: (s: DataSource[]) => void;
   setSchema: (id: string, schema: DataSourceSchema) => void;
   setJobs: (j: Job[]) => void;
@@ -59,9 +62,11 @@ export const useAppStore = create<AppState>((set) => ({
   activeJobId: null,
   centerTabs: [],
   activeCenterTabId: null,
+  settingsOpen: false,
 
   setView: (v) => set({ view: v }),
   setSettings: (s) => set({ settings: s }),
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
   setSources: (s) => set({ sources: s }),
   setSchema: (id, schema) =>
     set((state) => {
