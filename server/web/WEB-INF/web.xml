@@ -72,5 +72,10 @@
     <listener>
         <listener-class>com.ithows.base.SOXSessionListener</listener-class>
     </listener>
-    
+
+    <!-- AidClaude: 데이터 홈 + 중앙 app.db 초기화 -->
+    <listener>
+        <listener-class>com.ithows.aidclaude.AidClaudeInitListener</listener-class>
+    </listener>
+
 </web-app>
