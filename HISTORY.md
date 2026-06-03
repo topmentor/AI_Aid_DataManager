@@ -949,6 +949,17 @@ A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정
 - 배포 인스톨러(electron-builder `extraResources`로 jar+web 동봉, JRE 번들)는 미설정 — 개발 실행은 시스템 java 사용.
 - 실제 Electron GUI 구동 검증은 본 환경 제약으로 미수행(빌드·타입·HTTP 계약으로 대체 검증).
 
+## 스크립트 정리 + Electron 패키지 빌드 — 2026-06-03
+
+루트 스크립트를 **3개로 정리**(기존 setup.ps1 / app·dev/build.ps1 / server/run.ps1 폐기):
+- **`run.ps1`** — 실행(개발): 의존성 확인 + jar 준비 + `npm run dev`(Electron이 백엔드 자동 기동). `-Rebuild`로 jar 재빌드.
+- **`build.ps1`** — 빌드(패키지 포함): SSF fat-jar(+스모크) + `electron-vite build` + **`electron-builder` 인스톨러**(`app/dist/AIDA-<ver>-setup.exe`). `-NoPackage`/`-SkipSmoke` 옵션.
+- **`stop.ps1`** — 정지: SSF `java`(aida-server) + Electron(dev/AIDA.exe) 프로세스 종료 + `tomcat.*` 임시 디렉터리 정리.
+- 공통 로직은 `tools/_common.ps1`(dot-source), jar 빌드는 `server/build.ps1` 재사용.
+
+**Electron 패키징 추가**: `app/electron-builder.yml`(appId `com.ithows.aida`, productName `AIDA`, NSIS), `extraResources`로 `aida-server.jar`+`web`를 `resources/server/`에 동봉 → 패키지 앱이 시스템 Java로 백엔드 기동(server-launcher 프로덕션 경로와 일치). 검증: `AIDA-0.1.0-setup.exe`(184MB) 생성 + 동봉 리소스 확인.
+비고: JRE 미번들(시스템 Java 17 필요). 코드사이닝 미적용.
+
 ## 프로젝트 이름 변경: AidClaude → AIDA (AI Data Analyst) — 2026-06-03
 
 전 식별자 일괄 변경(검증: 빌드+전체 스모크+통합+타입체크, 코드 내 구명칭 0건):

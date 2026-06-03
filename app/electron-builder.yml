@@ -1,0 +1,28 @@
+appId: com.ithows.aida
+productName: AIDA
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# SSF 백엔드 jar + web 정적 리소스를 앱 resources/ 에 동봉
+# (server-launcher.ts 프로덕션 경로: process.resourcesPath/server/*)
+extraResources:
+  - from: ../server/target/aida-server.jar
+    to: server/aida-server.jar
+  - from: ../server/web
+    to: server/web
+
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

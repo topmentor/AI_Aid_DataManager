@@ -1,12 +1,14 @@
 {
   "name": "aida",
   "version": "0.1.0",
-  "description": "Claude Code 기반 데이터 분석·시각화 도구",
+  "description": "AIDA — AI Data Analyst (데이터 조회·분석 데스크톱 도구)",
+  "author": "ithows",
   "main": "out/main/index.js",
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "package": "electron-vite build && electron-builder",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test:integration": "esbuild src/preload/api-client.ts --bundle --format=esm --platform=node --outfile=test/.apiclient.mjs && node test/integration.mjs"
   },
@@ -34,6 +36,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "electron": "^35.0.0",
+    "electron-builder": "^24.13.3",
     "electron-vite": "^2.3.0",
     "typescript": "^5.5.0",
     "vite": "^5.3.0"
