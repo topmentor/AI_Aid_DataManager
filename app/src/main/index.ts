@@ -1,8 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { probeClaude } from "./services/claude-detector.js";
-import { sendMessage as claudeSendMessage, abortJob } from "./services/claude-service.js";
 import { launchServer, resolvePaths, type ServerHandle } from "./services/server-launcher.js";
 
 // Suppress harmless "Request Autofill.enable failed" DevTools Protocol noise
@@ -80,15 +78,6 @@ app.on("before-quit", () => {
 ipcMain.on("aidclaude:server-url", (e) => {
   e.returnValue = server ? server.url : "";
 });
-
-// ── Claude (Electron 잔류 — SSF에 HTTP 위임) ──
-ipcMain.handle("claude:probe", () => probeClaude({ cwd: dataHome() }));
-ipcMain.handle("claude:sendMessage", async (_e, jobId: string, msg: string) => {
-  if (!win) throw new Error("Window not initialized");
-  if (!server) throw new Error("Server not ready");
-  await claudeSendMessage(win, server.url, jobId, msg);
-});
-ipcMain.handle("claude:abort", (_e, jobId: string) => abortJob(jobId));
 
 // ── 네이티브 다이얼로그/내보내기 (Electron 전용) ──
 ipcMain.handle("files:open", (_e, fp: string) => shell.openPath(fp));

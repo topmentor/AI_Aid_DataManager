@@ -121,6 +121,34 @@ export function createApiClient(serverUrl: string) {
       copyShapefile: async (srcShpPath: string) =>
         okMap(await call(serverUrl, "copyShapefile.do", { srcShpPath })),
     },
+    // Agent PTY 터미널 (claude/codex) — SSF의 /api/agent-pty + /ws/agent-pty
+    agent: {
+      startLocal: async (opts: { agent: string; workingDirectory: string }) => {
+        const body = new URLSearchParams({
+          agent: opts.agent,
+          workingDirectory: opts.workingDirectory,
+        }).toString();
+        const res = await fetch(`${serverUrl}/api/agent-pty/local`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+          body,
+        });
+        const json = (await res.json()) as {
+          sessionId?: string; agent?: string; command?: string; workingDirectory?: string; error?: string;
+        };
+        if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+        return json as { sessionId: string; agent: string; command: string; workingDirectory: string };
+      },
+      killLocal: async (sessionId: string) => {
+        await fetch(`${serverUrl}/api/agent-pty/local/${encodeURIComponent(sessionId)}/kill`, {
+          method: "POST",
+        }).catch(() => undefined);
+      },
+      wsUrl: (sessionId: string, cols: number, rows: number) => {
+        const wsBase = serverUrl.replace(/^http/i, "ws");
+        return `${wsBase}/ws/agent-pty/local/${encodeURIComponent(sessionId)}?cols=${cols}&rows=${rows}`;
+      },
+    },
   };
 }
 

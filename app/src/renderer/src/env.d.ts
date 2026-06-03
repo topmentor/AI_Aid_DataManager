@@ -2,7 +2,6 @@ import type {
   DataSource,
   DataSourceSchema,
   Job,
-  ClaudeEnvProbe,
   AppSettings,
 } from "../../shared/types";
 
@@ -22,10 +21,12 @@ declare global {
         getSchema(id: string): Promise<DataSourceSchema>;
         previewData(id: string, limit?: number): Promise<{ title: string; headers: string[]; rows: string[][] }>;
       };
-      claude: {
-        probe(): Promise<ClaudeEnvProbe>;
-        sendMessage(jobId: string, message: string): Promise<void>;
-        abort(jobId: string): Promise<void>;
+      agent: {
+        startLocal(opts: { agent: string; workingDirectory: string }): Promise<{
+          sessionId: string; agent: string; command: string; workingDirectory: string;
+        }>;
+        killLocal(sessionId: string): Promise<void>;
+        wsUrl(sessionId: string, cols: number, rows: number): string;
       };
       jobs: {
         create(userRequest: string, sourceIds: string[]): Promise<Job>;
@@ -62,8 +63,6 @@ declare global {
       dialog: {
         openFile(filters: { name: string; extensions: string[] }[]): Promise<string | null>;
       };
-      on(channel: string, fn: (...args: unknown[]) => void): void;
-      off(channel: string, fn: (...args: unknown[]) => void): void;
     };
   }
 }
