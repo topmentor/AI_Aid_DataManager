@@ -949,6 +949,28 @@ A(SSF 백엔드) 위에 Electron 셸·프론트 전송·빌드를 통합. 결정
 - 배포 인스톨러(electron-builder `extraResources`로 jar+web 동봉, JRE 번들)는 미설정 — 개발 실행은 시스템 java 사용.
 - 실제 Electron GUI 구동 검증은 본 환경 제약으로 미수행(빌드·타입·HTTP 계약으로 대체 검증).
 
+## Claude 채팅 패널 → Agent PTY 터미널 대체 (E) — 2026-06-03
+
+`reusable/agent-pty-kit`(pty4j 로컬 PTY + @ServerEndpoint WS + xterm.js)를 이식해 스트리밍 IPC 기반 ChatPanel/CodePanel을 **claude/codex 터미널**로 대체. 에이전트가 job 워크스페이스(cwd)에서 data.db/data_helpers.py를 직접 다룬다.
+설계: [docs/superpowers/specs/2026-06-03-agent-terminal-panel-design.md](docs/superpowers/specs/2026-06-03-agent-terminal-panel-design.md)
+
+### 백엔드(SSF) — `com.ithows.aidclaude.agentpty`
+- 로컬 전용 이식(Remote/SSHJ 제외): AgentCommandCatalog/PathGuard/LocalAgentPty{Options,Session,Registry,Runner}/WebSocketEndpoint + 슬림 AgentPtyRuntime.
+- `AgentPtyServlet`(`/api/agent-pty/local` start/kill), `AgentPtyInitListener`(런타임 init + **프로그래매틱 `ServerContainer.addEndpoint`** — fat-jar의 @ServerEndpoint 스캔 한계 우회). cwd는 데이터 홈으로 가드.
+- pom: `+pty4j 0.13.6`; **컴파일 타깃 8→17**(record 등); **javassist 3.12→3.29**(reflections가 Java17 바이트코드 스캔하도록).
+
+### 프론트(React)
+- `TerminalPanel.tsx`(xterm.js): "시작"→`jobs.create`(소스 적재)→`agent.startLocal`(workspaceDir)→WS 연결. preload `agent.startLocal/killLocal/wsUrl`(동적 포트→ws). ProjectWindow 우측을 터미널로 교체.
+
+### 삭제
+- 프론트: ChatPanel/CodePanel/ResultPanel(레거시), appStore 채팅·스트리밍·probe·code 상태.
+- main: claude-bridge/service/detector + ssf-client, claude IPC, preload claude 네임스페이스·push 이벤트, chokidar.
+
+### 검증
+- 백엔드 스모크 `agentpty.ps1` 6/6(start→WS→PTY 출력→kill), 전체 스위트+통합 회귀 OK.
+- 프론트 typecheck(web+node) clean, electron-vite build OK, integration 19/19.
+- 비고: 실제 claude/codex TUI 구동은 GUI에서 확인 필요(codex CLI 미설치 시 해당 옵션은 spawn 실패).
+
 ### ssf_skell 제거 (2026-06-03)
 참조용 `ssf_skell/` 제거. `server`를 **자립형**으로 전환:
 - `server/pom.xml`의 system-scope 로컬 jar 9종(SOXGeoEngine/engine/Filters/jai/ojdbc6/xmlrpc/svgSalamander/java-json) 제거 — `server/src` 어느 파일도 import하지 않음을 전수 확인.
