@@ -45,4 +45,7 @@ contextBridge.exposeInMainWorld("aida", {
       ipcRenderer.invoke("dialog:openFile", filters),
     openDirectory: () => ipcRenderer.invoke("dialog:openDirectory"),
   },
+  fonts: {
+    list: () => ipcRenderer.invoke("fonts:list"),
+  },
 });

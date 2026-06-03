@@ -66,6 +66,9 @@ declare global {
         openFile(filters: { name: string; extensions: string[] }[]): Promise<string | null>;
         openDirectory(): Promise<string | null>;
       };
+      fonts: {
+        list(): Promise<string[]>;
+      };
     };
   }
 }

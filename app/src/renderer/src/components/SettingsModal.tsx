@@ -21,6 +21,7 @@ export function SettingsModal() {
   const [workspaceRoot, setWorkspaceRoot] = useState("");
   const [fontFamily, setFontFamily] = useState("");
   const [fontSize, setFontSize] = useState("13");
+  const [systemFonts, setSystemFonts] = useState<string[]>([]);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -34,6 +35,7 @@ export function SettingsModal() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+    window.aida.fonts.list().then(setSystemFonts).catch(() => setSystemFonts([]));
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSettingsOpen(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -86,12 +88,21 @@ export function SettingsModal() {
               <span>AI 터미널 폰트</span>
               <div className="sm-row sm-font-row">
                 <select className="sm-font-select" title="AI 터미널 폰트" value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
-                  {!FONT_OPTIONS.includes(fontFamily) && fontFamily && (
+                  {fontFamily && !FONT_OPTIONS.includes(fontFamily) && !systemFonts.includes(fontFamily) && (
                     <option value={fontFamily}>{fontFamily} (현재)</option>
                   )}
-                  {FONT_OPTIONS.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
+                  <optgroup label="추천 (고정폭)">
+                    {FONT_OPTIONS.map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </optgroup>
+                  {systemFonts.length > 0 && (
+                    <optgroup label="시스템 폰트">
+                      {systemFonts.map((f) => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 <input className="sm-font-size" type="number" min={8} max={40} value={fontSize}
                   onChange={(e) => setFontSize(e.target.value)} title="폰트 크기 (px)" />

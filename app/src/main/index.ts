@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { launchServer, resolvePaths, type ServerHandle } from "./services/server-launcher.js";
+import { getFonts } from "font-list";
 
 // Suppress harmless "Request Autofill.enable failed" DevTools Protocol noise
 app.commandLine.appendSwitch("disable-features", "AutofillServerCommunication");
@@ -121,6 +122,17 @@ ipcMain.handle(
     return result.canceled ? null : (result.filePaths[0] ?? null);
   }
 );
+
+// 시스템 설치 폰트 목록 (설정창 폰트 콤보박스용)
+ipcMain.handle("fonts:list", async () => {
+  try {
+    const fonts = await getFonts({ disableQuoting: true });
+    return Array.from(new Set(fonts.map((f) => f.trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, "ko"));
+  } catch {
+    return [];
+  }
+});
 
 ipcMain.handle("dialog:openDirectory", async () => {
   if (!win) return null;
