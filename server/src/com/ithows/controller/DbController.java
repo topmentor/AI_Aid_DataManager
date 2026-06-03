@@ -2,10 +2,10 @@ package com.ithows.controller;
 
 import com.ithows.HttpUtil;
 import com.ithows.ResultMap;
-import com.ithows.aidclaude.AcContext;
-import com.ithows.aidclaude.AcResp;
-import com.ithows.aidclaude.Names;
-import com.ithows.aidclaude.SqliteUtil;
+import com.ithows.aida.AidaContext;
+import com.ithows.aida.AidaResp;
+import com.ithows.aida.Names;
+import com.ithows.aida.SqliteUtil;
 import com.ithows.base.ApiInfo;
 import com.ithows.base.ControllerClassInfo;
 import com.ithows.base.ControllerMethodInfo;
@@ -38,15 +38,15 @@ public class DbController {
     public String listTables(HttpSession session, HttpServletRequest request,
                              HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         File db = jobDb(body.optString("jobId", ""));
-        if (db == null) return AcResp.error(request, "작업을 찾을 수 없습니다");
+        if (db == null) return AidaResp.error(request, "작업을 찾을 수 없습니다");
         try (Connection c = SqliteUtil.open(db.getAbsolutePath())) {
             JSONArray arr = new JSONArray();
             for (String t : SqliteUtil.listTables(c)) arr.put(t);
-            return AcResp.list(request, arr);
+            return AidaResp.list(request, arr);
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -55,12 +55,12 @@ public class DbController {
     public String previewTable(HttpSession session, HttpServletRequest request,
                                HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         File db = jobDb(body.optString("jobId", ""));
-        if (db == null) return AcResp.error(request, "작업을 찾을 수 없습니다");
+        if (db == null) return AidaResp.error(request, "작업을 찾을 수 없습니다");
         String table = body.optString("tableName", "");
         int limit = body.optInt("limit", 500);
-        if (table.isEmpty()) return AcResp.error(request, "tableName이 필요합니다");
+        if (table.isEmpty()) return AidaResp.error(request, "tableName이 필요합니다");
         try (Connection c = SqliteUtil.open(db.getAbsolutePath());
              Statement st = c.createStatement();
              ResultSet rs = st.executeQuery("SELECT * FROM " + SqliteUtil.quoteIdent(table) + " LIMIT " + limit)) {
@@ -81,9 +81,9 @@ public class DbController {
             out.put("title", table);
             out.put("headers", headers);
             out.put("rows", rows);
-            return AcResp.map(request, out);
+            return AidaResp.map(request, out);
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -92,12 +92,12 @@ public class DbController {
     public String saveTableAsSource(HttpSession session, HttpServletRequest request,
                                     HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         File db = jobDb(body.optString("jobId", ""));
-        if (db == null) return AcResp.error(request, "작업을 찾을 수 없습니다");
+        if (db == null) return AidaResp.error(request, "작업을 찾을 수 없습니다");
         String table = body.optString("tableName", "");
         String sourceName = body.optString("sourceName", "").trim();
-        if (table.isEmpty() || sourceName.isEmpty()) return AcResp.error(request, "tableName/sourceName이 필요합니다");
+        if (table.isEmpty() || sourceName.isEmpty()) return AidaResp.error(request, "tableName/sourceName이 필요합니다");
         try (Connection c = SqliteUtil.open(db.getAbsolutePath());
              Statement st = c.createStatement();
              ResultSet rs = st.executeQuery("SELECT * FROM " + SqliteUtil.quoteIdent(table))) {
@@ -117,11 +117,11 @@ public class DbController {
                 sb.append("\r\n").append(csvRow(cells));
                 n++;
             }
-            if (n == 0) return AcResp.error(request, "테이블이 비어 있습니다");
+            if (n == 0) return AidaResp.error(request, "테이블이 비어 있습니다");
             JSONObject src = writeCsvSource(sourceName, sb.toString());
-            return AcResp.map(request, src);
+            return AidaResp.map(request, src);
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -130,11 +130,11 @@ public class DbController {
     public String saveDataAsSource(HttpSession session, HttpServletRequest request,
                                    HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String sourceName = body.optString("sourceName", "").trim();
         JSONArray headers = body.optJSONArray("headers");
         JSONArray rows = body.optJSONArray("rows");
-        if (sourceName.isEmpty() || headers == null) return AcResp.error(request, "sourceName/headers가 필요합니다");
+        if (sourceName.isEmpty() || headers == null) return AidaResp.error(request, "sourceName/headers가 필요합니다");
         String[] hs = new String[headers.length()];
         for (int i = 0; i < hs.length; i++) hs[i] = headers.optString(i, "");
         StringBuilder sb = new StringBuilder(csvRow(hs));
@@ -147,9 +147,9 @@ public class DbController {
             }
         }
         try {
-            return AcResp.map(request, writeCsvSource(sourceName, sb.toString()));
+            return AidaResp.map(request, writeCsvSource(sourceName, sb.toString()));
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -157,7 +157,7 @@ public class DbController {
 
     /** CSV(UTF-8 BOM)로 data/에 저장 후 카탈로그에 등록, 등록된 소스 JSON 반환. */
     private static JSONObject writeCsvSource(String sourceName, String csvContent) throws Exception {
-        File dataDir = AcContext.dataDir();
+        File dataDir = AidaContext.dataDir();
         dataDir.mkdirs();
         String safe = sourceName.replaceAll("[^\\w\\uac00-\\ud7a3_-]", "_");
         File csv = new File(dataDir, safe + "_" + System.currentTimeMillis() + ".csv");
@@ -172,7 +172,7 @@ public class DbController {
         JSONObject cfg = new JSONObject().put("filePath", csv.getAbsolutePath());
         String id = CatalogDAO.add(sourceName, "csv", cfg.toString());
         ResultMap row = CatalogDAO.get(id);
-        return com.ithows.aidclaude.model.SourceRef.from(row).toJson();
+        return com.ithows.aida.model.SourceRef.from(row).toJson();
     }
 
     private static String csvRow(String[] cells) {

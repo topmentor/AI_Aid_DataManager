@@ -2,9 +2,9 @@ package com.ithows.controller;
 
 import com.ithows.HttpUtil;
 import com.ithows.ResultMap;
-import com.ithows.aidclaude.AcResp;
-import com.ithows.aidclaude.SchemaInspector;
-import com.ithows.aidclaude.model.SourceRef;
+import com.ithows.aida.AidaResp;
+import com.ithows.aida.SchemaInspector;
+import com.ithows.aida.model.SourceRef;
 import com.ithows.base.ApiInfo;
 import com.ithows.base.ControllerClassInfo;
 import com.ithows.base.ControllerMethodInfo;
@@ -26,14 +26,14 @@ public class SchemaController {
     public String getSchema(HttpSession session, HttpServletRequest request,
                             HttpServletResponse response, Object command) {
         SourceRef s = resolve(request);
-        if (s == null) return AcResp.error(request, "소스를 찾을 수 없습니다(id 확인)");
+        if (s == null) return AidaResp.error(request, "소스를 찾을 수 없습니다(id 확인)");
         try {
             org.json.JSONObject schema = SchemaInspector.inspect(s);
             schema.put("sourceId", s.id);
             schema.put("sourceName", s.name);
-            return AcResp.map(request, schema);
+            return AidaResp.map(request, schema);
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -42,14 +42,14 @@ public class SchemaController {
     public String previewData(HttpSession session, HttpServletRequest request,
                               HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         SourceRef s = resolveFrom(body);
-        if (s == null) return AcResp.error(request, "소스를 찾을 수 없습니다(id 확인)");
+        if (s == null) return AidaResp.error(request, "소스를 찾을 수 없습니다(id 확인)");
         int limit = body.optInt("limit", 50);
         try {
-            return AcResp.map(request, SchemaInspector.preview(s, limit));
+            return AidaResp.map(request, SchemaInspector.preview(s, limit));
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 

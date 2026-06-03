@@ -1,4 +1,4 @@
-﻿# AidClaude — 의존성 확인 + 빌드 스크립트 (SSF 백엔드 + Electron)
+﻿# AIDA — 의존성 확인 + 빌드 스크립트 (SSF 백엔드 + Electron)
 # 사용법:
 #   .\setup.ps1          의존성 확인 + SSF jar 빌드
 #   .\setup.ps1 -Dev     확인 후 개발 실행 (Electron이 SSF jar를 자동 기동)
@@ -16,7 +16,7 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $Root      = $PSScriptRoot
 $AppDir    = Join-Path $Root "app"
 $ServerDir = Join-Path $Root "server"
-$Jar       = Join-Path $ServerDir "target\aidclaude-server.jar"
+$Jar       = Join-Path $ServerDir "target\aida-server.jar"
 $AllOk     = $true
 
 function Step($n, $msg)  { Write-Host "`n[$n] $msg" -ForegroundColor Cyan }

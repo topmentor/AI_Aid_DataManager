@@ -7,10 +7,10 @@ Invoke-WithServer -Port $Port -Body {
 
     # ── Files: writeText / readText (한글) ──
     $scratch = Join-Path $acHome "scratch.txt"
-    $w = Post $base "api/writeText.do" @{ path = $scratch; content = "안녕 AidClaude" }
+    $w = Post $base "api/writeText.do" @{ path = $scratch; content = "안녕 AIDA" }
     Check "writeText OK" ($w.result -eq "OK")
     $rt = Post $base "api/readText.do" @{ path = $scratch }
-    Check "readText korean roundtrip" ($rt.resultMap.content -eq "안녕 AidClaude")
+    Check "readText korean roundtrip" ($rt.resultMap.content -eq "안녕 AIDA")
 
     # 경로 탈출 차단
     $bad = Post $base "api/readText.do" @{ path = "C:\Windows\win.ini" }

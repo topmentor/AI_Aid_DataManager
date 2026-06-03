@@ -2,9 +2,9 @@ package com.ithows.controller;
 
 import com.ithows.HttpUtil;
 import com.ithows.ResultMap;
-import com.ithows.aidclaude.AcResp;
-import com.ithows.aidclaude.ConnTester;
-import com.ithows.aidclaude.model.SourceRef;
+import com.ithows.aida.AidaResp;
+import com.ithows.aida.ConnTester;
+import com.ithows.aida.model.SourceRef;
 import com.ithows.base.ApiInfo;
 import com.ithows.base.ControllerClassInfo;
 import com.ithows.base.ControllerMethodInfo;
@@ -29,10 +29,10 @@ public class CatalogController {
     public String listSources(HttpSession session, HttpServletRequest request,
                               HttpServletResponse response, Object command) {
         List<ResultMap> rows = CatalogDAO.list();
-        if (rows == null) return AcResp.error(request, "카탈로그 조회 실패");
+        if (rows == null) return AidaResp.error(request, "카탈로그 조회 실패");
         JSONArray arr = new JSONArray();
         for (ResultMap r : rows) arr.put(SourceRef.from(r).toJson());
-        return AcResp.list(request, arr);
+        return AidaResp.list(request, arr);
     }
 
     @ControllerMethodInfo(id = "/api/addSource.do")
@@ -40,15 +40,15 @@ public class CatalogController {
     public String addSource(HttpSession session, HttpServletRequest request,
                             HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String name = body.optString("name", "").trim();
         String type = body.optString("type", "").trim();
-        if (name.isEmpty() || type.isEmpty()) return AcResp.error(request, "name/type이 필요합니다");
+        if (name.isEmpty() || type.isEmpty()) return AidaResp.error(request, "name/type이 필요합니다");
         JSONObject config = body.optJSONObject("config");
         String id = CatalogDAO.add(name, type, (config == null ? new JSONObject() : config).toString());
-        if (id == null) return AcResp.error(request, "추가 실패");
+        if (id == null) return AidaResp.error(request, "추가 실패");
         ResultMap row = CatalogDAO.get(id);
-        return AcResp.map(request, SourceRef.from(row).toJson());
+        return AidaResp.map(request, SourceRef.from(row).toJson());
     }
 
     @ControllerMethodInfo(id = "/api/updateSource.do")
@@ -56,15 +56,15 @@ public class CatalogController {
     public String updateSource(HttpSession session, HttpServletRequest request,
                                HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String id = body.optString("id", "").trim();
-        if (id.isEmpty()) return AcResp.error(request, "id가 필요합니다");
+        if (id.isEmpty()) return AidaResp.error(request, "id가 필요합니다");
         String name = body.optString("name", "").trim();
         String type = body.optString("type", "").trim();
         JSONObject config = body.optJSONObject("config");
         int n = CatalogDAO.update(id, name, type, (config == null ? new JSONObject() : config).toString());
-        if (n <= 0) return AcResp.error(request, "수정 실패(대상 없음)");
-        return AcResp.map(request, SourceRef.from(CatalogDAO.get(id)).toJson());
+        if (n <= 0) return AidaResp.error(request, "수정 실패(대상 없음)");
+        return AidaResp.map(request, SourceRef.from(CatalogDAO.get(id)).toJson());
     }
 
     @ControllerMethodInfo(id = "/api/removeSource.do")
@@ -72,11 +72,11 @@ public class CatalogController {
     public String removeSource(HttpSession session, HttpServletRequest request,
                                HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String id = body.optString("id", "").trim();
-        if (id.isEmpty()) return AcResp.error(request, "id가 필요합니다");
+        if (id.isEmpty()) return AidaResp.error(request, "id가 필요합니다");
         int n = CatalogDAO.remove(id);
-        return n > 0 ? AcResp.ok(request) : AcResp.no(request, "대상이 없습니다");
+        return n > 0 ? AidaResp.ok(request) : AidaResp.no(request, "대상이 없습니다");
     }
 
     @ControllerMethodInfo(id = "/api/testConnection.do")
@@ -84,12 +84,12 @@ public class CatalogController {
     public String testConnection(HttpSession session, HttpServletRequest request,
                                  HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String id = body.optString("id", "").trim();
-        if (id.isEmpty()) return AcResp.error(request, "id가 필요합니다");
+        if (id.isEmpty()) return AidaResp.error(request, "id가 필요합니다");
         ResultMap row = CatalogDAO.get(id);
-        if (row == null) return AcResp.error(request, "소스를 찾을 수 없습니다");
-        return AcResp.map(request, ConnTester.test(SourceRef.from(row)));
+        if (row == null) return AidaResp.error(request, "소스를 찾을 수 없습니다");
+        return AidaResp.map(request, ConnTester.test(SourceRef.from(row)));
     }
 
     private static JSONObject bodyOrNull(HttpServletRequest request) {

@@ -33,10 +33,10 @@
         <load-on-startup>1</load-on-startup>
     </servlet>
 
-    <!-- AidClaude: Agent PTY (claude/codex 터미널) start/kill -->
+    <!-- AIDA: Agent PTY (claude/codex 터미널) start/kill -->
     <servlet>
         <servlet-name>AgentPtyServlet</servlet-name>
-        <servlet-class>com.ithows.aidclaude.agentpty.AgentPtyServlet</servlet-class>
+        <servlet-class>com.ithows.aida.agentpty.AgentPtyServlet</servlet-class>
     </servlet>
     <servlet-mapping>
         <servlet-name>AgentPtyServlet</servlet-name>
@@ -44,10 +44,10 @@
     </servlet-mapping>
 
     
-    <!-- AidClaude: 로컬 Electron 렌더러의 cross-origin /api 호출 허용 (첫 필터) -->
+    <!-- AIDA: 로컬 Electron 렌더러의 cross-origin /api 호출 허용 (첫 필터) -->
     <filter>
         <filter-name>CorsFilter</filter-name>
-        <filter-class>com.ithows.aidclaude.CorsFilter</filter-class>
+        <filter-class>com.ithows.aida.CorsFilter</filter-class>
     </filter>
     <filter-mapping>
         <filter-name>CorsFilter</filter-name>
@@ -94,14 +94,14 @@
         <listener-class>com.ithows.base.SOXSessionListener</listener-class>
     </listener>
 
-    <!-- AidClaude: 데이터 홈 + 중앙 app.db 초기화 -->
+    <!-- AIDA: 데이터 홈 + 중앙 app.db 초기화 -->
     <listener>
-        <listener-class>com.ithows.aidclaude.AidClaudeInitListener</listener-class>
+        <listener-class>com.ithows.aida.AidaInitListener</listener-class>
     </listener>
 
-    <!-- AidClaude: Agent PTY 런타임 + WebSocket 엔드포인트 등록 -->
+    <!-- AIDA: Agent PTY 런타임 + WebSocket 엔드포인트 등록 -->
     <listener>
-        <listener-class>com.ithows.aidclaude.agentpty.AgentPtyInitListener</listener-class>
+        <listener-class>com.ithows.aida.agentpty.AgentPtyInitListener</listener-class>
     </listener>
 
 </web-app>

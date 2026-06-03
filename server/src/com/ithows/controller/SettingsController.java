@@ -1,7 +1,7 @@
 package com.ithows.controller;
 
 import com.ithows.HttpUtil;
-import com.ithows.aidclaude.AcResp;
+import com.ithows.aida.AidaResp;
 import com.ithows.base.ApiInfo;
 import com.ithows.base.ControllerClassInfo;
 import com.ithows.base.ControllerMethodInfo;
@@ -23,7 +23,7 @@ public class SettingsController {
              tag = "Settings", method = "GET")
     public String getSettings(HttpSession session, HttpServletRequest request,
                               HttpServletResponse response, Object command) {
-        return AcResp.map(request, AcResp.toJson(SettingsDAO.getAll()));
+        return AidaResp.map(request, AidaResp.toJson(SettingsDAO.getAll()));
     }
 
     @ControllerMethodInfo(id = "/api/setSettings.do")
@@ -34,9 +34,9 @@ public class SettingsController {
         JSONObject body;
         try { body = HttpUtil.getBodyJson(request); } catch (Exception e) { body = null; }
         if (body == null) {
-            return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+            return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         }
         SettingsDAO.putAll(body);
-        return AcResp.map(request, AcResp.toJson(SettingsDAO.getAll()));
+        return AidaResp.map(request, AidaResp.toJson(SettingsDAO.getAll()));
     }
 }

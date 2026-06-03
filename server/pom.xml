@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    AidClaude SSF 백엔드 — 실행 가능 fat-jar (Embedded Tomcat 9).
+    AIDA SSF 백엔드 — 실행 가능 fat-jar (Embedded Tomcat 9).
 
     빌드:  mvn -f server/pom.xml clean package
-    실행:  java -Daidclaude.home=<home> -Dserver.port=8765 \
-                -Dwebapp.base=server/web -jar server/target/aidclaude-server.jar
+    실행:  java -Daida.home=<home> -Dserver.port=8765 \
+                -Dwebapp.base=server/web -jar server/target/aida-server.jar
 
     자립형: 모든 의존성은 Maven Central + sqlite-jdbc/commons-csv 로 해결(ssf_skell 불필요).
 -->
@@ -14,11 +14,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ithows</groupId>
-    <artifactId>aidclaude-server</artifactId>
+    <artifactId>aida-server</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>AidClaude SSF Backend</name>
+    <name>AIDA SSF Backend</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -84,7 +84,7 @@
             <version>1.2</version>
         </dependency>
 
-        <!-- ===== AidClaude 신규 ===== -->
+        <!-- ===== AIDA 신규 ===== -->
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
@@ -309,7 +309,7 @@
     </dependencies>
 
     <build>
-        <finalName>aidclaude-server</finalName>
+        <finalName>aida-server</finalName>
         <sourceDirectory>src</sourceDirectory>
         <resources>
             <resource>

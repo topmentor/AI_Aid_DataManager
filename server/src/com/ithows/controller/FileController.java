@@ -1,8 +1,8 @@
 package com.ithows.controller;
 
 import com.ithows.HttpUtil;
-import com.ithows.aidclaude.AcContext;
-import com.ithows.aidclaude.AcResp;
+import com.ithows.aida.AidaContext;
+import com.ithows.aida.AidaResp;
 import com.ithows.base.ApiInfo;
 import com.ithows.base.ControllerClassInfo;
 import com.ithows.base.ControllerMethodInfo;
@@ -32,15 +32,15 @@ public class FileController {
     public String readText(HttpSession session, HttpServletRequest request,
                            HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         File f = safe(body.optString("path", ""));
-        if (f == null) return AcResp.error(request, "허용되지 않은 경로입니다");
-        if (!f.exists()) return AcResp.map(request, new JSONObject().put("content", JSONObject.NULL));
+        if (f == null) return AidaResp.error(request, "허용되지 않은 경로입니다");
+        if (!f.exists()) return AidaResp.map(request, new JSONObject().put("content", JSONObject.NULL));
         try {
             String s = new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8);
-            return AcResp.map(request, new JSONObject().put("content", s));
+            return AidaResp.map(request, new JSONObject().put("content", s));
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -49,15 +49,15 @@ public class FileController {
     public String writeText(HttpSession session, HttpServletRequest request,
                             HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         File f = safe(body.optString("path", ""));
-        if (f == null) return AcResp.error(request, "허용되지 않은 경로입니다");
+        if (f == null) return AidaResp.error(request, "허용되지 않은 경로입니다");
         try {
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
             Files.write(f.toPath(), body.optString("content", "").getBytes(StandardCharsets.UTF_8));
-            return AcResp.ok(request);
+            return AidaResp.ok(request);
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -66,17 +66,17 @@ public class FileController {
     public String readLines(HttpSession session, HttpServletRequest request,
                             HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         File f = safe(body.optString("path", ""));
-        if (f == null || !f.exists()) return AcResp.error(request, "허용되지 않거나 없는 경로");
+        if (f == null || !f.exists()) return AidaResp.error(request, "허용되지 않거나 없는 경로");
         int count = body.optInt("count", 50);
         try {
             List<String> all = Files.readAllLines(f.toPath(), StandardCharsets.UTF_8);
             org.json.JSONArray arr = new org.json.JSONArray();
             for (int i = 0; i < all.size() && i < count; i++) arr.put(all.get(i));
-            return AcResp.list(request, arr);
+            return AidaResp.list(request, arr);
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -85,14 +85,14 @@ public class FileController {
     public String readBase64(HttpSession session, HttpServletRequest request,
                              HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         File f = safe(body.optString("path", ""));
-        if (f == null || !f.exists()) return AcResp.error(request, "허용되지 않거나 없는 경로");
+        if (f == null || !f.exists()) return AidaResp.error(request, "허용되지 않거나 없는 경로");
         try {
             String b64 = Base64.getEncoder().encodeToString(Files.readAllBytes(f.toPath()));
-            return AcResp.map(request, new JSONObject().put("base64", b64));
+            return AidaResp.map(request, new JSONObject().put("base64", b64));
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -101,12 +101,12 @@ public class FileController {
     public String copyToData(HttpSession session, HttpServletRequest request,
                              HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String src = body.optString("srcPath", "");
         File s = new File(src);
-        if (src.isEmpty() || !s.exists()) return AcResp.error(request, "원본 파일이 없습니다");
+        if (src.isEmpty() || !s.exists()) return AidaResp.error(request, "원본 파일이 없습니다");
         try {
-            File dataDir = AcContext.dataDir();
+            File dataDir = AidaContext.dataDir();
             dataDir.mkdirs();
             String name = s.getName();
             String ext = name.contains(".") ? name.substring(name.lastIndexOf('.')) : "";
@@ -114,9 +114,9 @@ public class FileController {
                     .replaceAll("[^a-zA-Z0-9_\\-]", "_");
             File dest = new File(dataDir, baseN + "_" + System.currentTimeMillis() + ext);
             Files.copy(s.toPath(), dest.toPath());
-            return AcResp.map(request, new JSONObject().put("path", dest.getAbsolutePath()));
+            return AidaResp.map(request, new JSONObject().put("path", dest.getAbsolutePath()));
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -125,12 +125,12 @@ public class FileController {
     public String copyShapefile(HttpSession session, HttpServletRequest request,
                                 HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String src = body.optString("srcShpPath", "");
         File shp = new File(src);
-        if (src.isEmpty() || !shp.exists()) return AcResp.error(request, "shp 파일이 없습니다");
+        if (src.isEmpty() || !shp.exists()) return AidaResp.error(request, "shp 파일이 없습니다");
         try {
-            File dataDir = AcContext.dataDir();
+            File dataDir = AidaContext.dataDir();
             dataDir.mkdirs();
             File srcDir = shp.getParentFile();
             String srcBase = shp.getName().substring(0, shp.getName().length() - 4); // .shp 제거
@@ -149,10 +149,10 @@ public class FileController {
                 else if (c.equals("utf-16") || c.equals("utf-16le")) encoding = "utf-16le";
             }
             File destShp = new File(dataDir, destBase + ".shp");
-            return AcResp.map(request, new JSONObject()
+            return AidaResp.map(request, new JSONObject()
                     .put("shpPath", destShp.getAbsolutePath()).put("encoding", encoding));
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -161,7 +161,7 @@ public class FileController {
         if (path == null || path.isEmpty()) return null;
         try {
             File f = new File(path).getCanonicalFile();
-            String home = AcContext.home().getCanonicalPath();
+            String home = AidaContext.home().getCanonicalPath();
             String p = f.getPath();
             if (p.equals(home) || p.startsWith(home + File.separator)) return f;
             return null;

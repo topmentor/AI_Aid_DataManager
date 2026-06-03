@@ -14,7 +14,7 @@ function isDev(): boolean {
 }
 
 function dataHome(): string {
-  return path.join(app.getPath("userData"), "aidclaude");
+  return path.join(app.getPath("userData"), "aida");
 }
 
 async function startBackend(): Promise<ServerHandle> {
@@ -75,7 +75,7 @@ app.on("before-quit", () => {
 });
 
 // preload가 동기로 SSF 서버 URL을 질의 (동적 포트, sandbox 안전)
-ipcMain.on("aidclaude:server-url", (e) => {
+ipcMain.on("aida:server-url", (e) => {
   e.returnValue = server ? server.url : "";
 });
 

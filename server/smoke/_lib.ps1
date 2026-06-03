@@ -7,13 +7,13 @@ function Repo-Root { Split-Path (Split-Path $PSScriptRoot -Parent) -Parent }
 function Start-AcServer {
     param([int]$Port, [string]$AcHome)
     $root = Repo-Root
-    $jar  = Join-Path $root "server\target\aidclaude-server.jar"
+    $jar  = Join-Path $root "server\target\aida-server.jar"
     $web  = Join-Path $root "server\web"
     if (-not (Test-Path $jar)) { throw "jar 없음: $jar (mvn package 먼저)" }
     $log = Join-Path $env:TEMP ("acsmoke_" + $Port + ".log")
     $p = Start-Process java -PassThru -RedirectStandardOutput $log -RedirectStandardError "$log.err" -ArgumentList @(
-        "-Daidclaude.home=$AcHome", "-Dserver.port=$Port", "-Dwebapp.base=$web", "-jar", $jar)
-    $base = "http://localhost:$Port/AidClaude"
+        "-Daida.home=$AcHome", "-Dserver.port=$Port", "-Dwebapp.base=$web", "-jar", $jar)
+    $base = "http://localhost:$Port/AIDA"
     for ($i = 0; $i -lt 40; $i++) {
         Start-Sleep -Milliseconds 700
         try { Invoke-RestMethod "$base/api/checkHealth.do" -TimeoutSec 3 | Out-Null; return @{ Proc = $p; Base = $base; Log = $log } } catch {}

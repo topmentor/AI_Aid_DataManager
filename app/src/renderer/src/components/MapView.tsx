@@ -159,7 +159,7 @@ export function MapView({ headers, rows }: { headers: string[]; rows: string[][]
       map.triggerRepaint();
     });
     const base64 = map.getCanvas().toDataURL("image/png").split(",")[1];
-    await window.aidclaude.export.saveBinary(
+    await window.aida.export.saveBinary(
       "map.png",
       [{ name: "PNG 이미지", extensions: ["png"] }],
       base64

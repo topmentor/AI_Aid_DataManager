@@ -3,7 +3,7 @@
 $ErrorActionPreference = "Stop"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$jar  = Join-Path $root "server\target\aidclaude-server.jar"
+$jar  = Join-Path $root "server\target\aida-server.jar"
 $web  = Join-Path $root "server\web"
 $acHome = Join-Path $env:TEMP ("acpty_" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $acHome | Out-Null
@@ -11,8 +11,8 @@ $fail = 0
 function Check($n, $c) { if ($c) { Write-Host "  PASS  $n" -ForegroundColor Green } else { Write-Host "  FAIL  $n" -ForegroundColor Red; $script:fail++ } }
 
 $p = Start-Process java -PassThru -RedirectStandardOutput "$env:TEMP\acpty.log" -RedirectStandardError "$env:TEMP\acpty.err" -ArgumentList @(
-    "-Daidclaude.home=$acHome", "-Dserver.port=$Port", "-Dwebapp.base=$web", "-jar", $jar)
-$base = "http://localhost:$Port/AidClaude"
+    "-Daida.home=$acHome", "-Dserver.port=$Port", "-Dwebapp.base=$web", "-jar", $jar)
+$base = "http://localhost:$Port/AIDA"
 try {
     $up = $false
     for ($i = 0; $i -lt 40; $i++) { Start-Sleep -Milliseconds 700; try { Invoke-RestMethod "$base/api/checkHealth.do" -TimeoutSec 3 | Out-Null; $up = $true; break } catch {} }
@@ -30,7 +30,7 @@ try {
     # WebSocket 연결 + 출력 수신
     $ws = New-Object System.Net.WebSockets.ClientWebSocket
     $ct = [System.Threading.CancellationToken]::None
-    $uri = [Uri]("ws://localhost:$Port/AidClaude/ws/agent-pty/local/$([Uri]::EscapeDataString($sid))?cols=80&rows=24")
+    $uri = [Uri]("ws://localhost:$Port/AIDA/ws/agent-pty/local/$([Uri]::EscapeDataString($sid))?cols=80&rows=24")
     $ws.ConnectAsync($uri, $ct).Wait(5000) | Out-Null
     Check "ws connected" ($ws.State -eq 'Open')
 
@@ -59,7 +59,7 @@ try {
     $inst = Invoke-RestMethod "$base/api/agent-pty/install" -Method Post -ContentType "application/x-www-form-urlencoded" -Body $ibody -TimeoutSec 10
     Check "install returns sessionId" (-not [string]::IsNullOrEmpty($inst.sessionId))
     $iws = New-Object System.Net.WebSockets.ClientWebSocket
-    $iuri = [Uri]("ws://localhost:$Port/AidClaude/ws/agent-pty/local/$([Uri]::EscapeDataString($inst.sessionId))?cols=80&rows=24")
+    $iuri = [Uri]("ws://localhost:$Port/AIDA/ws/agent-pty/local/$([Uri]::EscapeDataString($inst.sessionId))?cols=80&rows=24")
     $iws.ConnectAsync($iuri, $ct).Wait(5000) | Out-Null
     $igot = ""
     for ($i = 0; $i -lt 8; $i++) {

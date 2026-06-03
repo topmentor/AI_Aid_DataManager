@@ -8,17 +8,17 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(__dirname, "..", "..");
-const jar = path.join(repo, "server", "target", "aidclaude-server.jar");
+const jar = path.join(repo, "server", "target", "aida-server.jar");
 const web = path.join(repo, "server", "web");
 const port = 8790;
-const base = `http://localhost:${port}/AidClaude`;
+const base = `http://localhost:${port}/AIDA`;
 const home = mkdtempSync(path.join(os.tmpdir(), "acint_"));
 
 let fail = 0;
 const check = (n, c) => { console.log(`  ${c ? "PASS" : "FAIL"}  ${n}`); if (!c) fail++; };
 
 const proc = spawn("java", [
-  `-Daidclaude.home=${home}`, `-Dserver.port=${port}`, `-Dwebapp.base=${web}`, "-jar", jar,
+  `-Daida.home=${home}`, `-Dserver.port=${port}`, `-Dwebapp.base=${web}`, "-jar", jar,
 ], { stdio: "ignore" });
 
 async function waitHealthy() {

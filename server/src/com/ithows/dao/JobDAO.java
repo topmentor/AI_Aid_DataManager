@@ -1,14 +1,14 @@
 package com.ithows.dao;
 
 import com.ithows.ResultMap;
-import com.ithows.aidclaude.AppDb;
-import com.ithows.aidclaude.SqliteUtil;
+import com.ithows.aida.AppDb;
+import com.ithows.aida.SqliteUtil;
 
 import java.sql.Connection;
 import java.util.List;
 
 /**
- * 작업(job) 메타 DAO — 중앙 app.db {@code ac_jobs}.
+ * 작업(job) 메타 DAO — 중앙 app.db {@code aida_jobs}.
  */
 public class JobDAO {
 
@@ -18,7 +18,7 @@ public class JobDAO {
         long now = System.currentTimeMillis() / 1000L;
         try (Connection c = AppDb.conn()) {
             return SqliteUtil.update(c,
-                    "INSERT INTO ac_jobs(id, user_request, status, error_msg, workspace_dir, created_at, updated_at) "
+                    "INSERT INTO aida_jobs(id, user_request, status, error_msg, workspace_dir, created_at, updated_at) "
                   + "VALUES(?,?,?,?,?,?,?)",
                     new Object[]{id, userRequest, status, null, workspaceDir, now, now});
         } catch (Exception e) {
@@ -31,7 +31,7 @@ public class JobDAO {
         try (Connection c = AppDb.conn()) {
             return SqliteUtil.queryForMapList(c,
                     "SELECT id, user_request, status, error_msg, workspace_dir, created_at, updated_at "
-                  + "FROM ac_jobs ORDER BY created_at DESC", null);
+                  + "FROM aida_jobs ORDER BY created_at DESC", null);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -42,7 +42,7 @@ public class JobDAO {
         try (Connection c = AppDb.conn()) {
             return SqliteUtil.queryForMap(c,
                     "SELECT id, user_request, status, error_msg, workspace_dir, created_at, updated_at "
-                  + "FROM ac_jobs WHERE id=?", new Object[]{id});
+                  + "FROM aida_jobs WHERE id=?", new Object[]{id});
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -53,7 +53,7 @@ public class JobDAO {
         long now = System.currentTimeMillis() / 1000L;
         try (Connection c = AppDb.conn()) {
             return SqliteUtil.update(c,
-                    "UPDATE ac_jobs SET status=?, error_msg=?, updated_at=? WHERE id=?",
+                    "UPDATE aida_jobs SET status=?, error_msg=?, updated_at=? WHERE id=?",
                     new Object[]{status, errorMsg, now, id});
         } catch (Exception e) {
             e.printStackTrace();

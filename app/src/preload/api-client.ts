@@ -1,6 +1,6 @@
 // SSF 백엔드(/api/*.do) HTTP 클라이언트 — preload의 데이터 네임스페이스 구현.
 // electron 비의존(노드 fetch). SSF 봉투 {result,resultMap,resultList,...}를
-// 기존 window.aidclaude.* 반환 형태로 언랩한다.
+// 기존 window.aida.* 반환 형태로 언랩한다.
 
 interface SsfEnvelope {
   result: string;

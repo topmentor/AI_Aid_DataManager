@@ -7,7 +7,7 @@ import type {
 
 declare global {
   interface Window {
-    aidclaude: {
+    aida: {
       settings: {
         get(): Promise<AppSettings>;
         set(s: Partial<AppSettings>): Promise<AppSettings>;

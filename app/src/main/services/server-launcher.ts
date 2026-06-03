@@ -28,13 +28,13 @@ export function resolvePaths(opts: { isDev: boolean; resourcesPath: string; proj
   const { isDev, resourcesPath, projectRoot } = opts;
   if (isDev) {
     return {
-      jar: path.join(projectRoot, "server", "target", "aidclaude-server.jar"),
+      jar: path.join(projectRoot, "server", "target", "aida-server.jar"),
       web: path.join(projectRoot, "server", "web"),
     };
   }
   // 배포: electron-builder extraResources 에 동봉
   return {
-    jar: path.join(resourcesPath, "server", "aidclaude-server.jar"),
+    jar: path.join(resourcesPath, "server", "aida-server.jar"),
     web: path.join(resourcesPath, "server", "web"),
   };
 }
@@ -53,7 +53,7 @@ export function startServer(opts: {
   }
   fs.mkdirSync(home, { recursive: true });
   const args = [
-    `-Daidclaude.home=${home}`,
+    `-Daida.home=${home}`,
     `-Dserver.port=${port}`,
     `-Dwebapp.base=${web}`,
     "-jar",
@@ -91,7 +91,7 @@ export async function launchServer(opts: {
 }): Promise<ServerHandle> {
   const port = await findFreePort();
   const proc = startServer({ ...opts, port });
-  const url = `http://localhost:${port}/AidClaude`;
+  const url = `http://localhost:${port}/AIDA`;
   try {
     await waitHealthy(url, opts.timeoutMs ?? 30000);
   } catch (e) {

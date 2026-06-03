@@ -1,5 +1,5 @@
 {
-  "name": "aidclaude",
+  "name": "aida",
   "version": "0.1.0",
   "description": "Claude Code 기반 데이터 분석·시각화 도구",
   "main": "out/main/index.js",

@@ -1,4 +1,4 @@
-﻿# AidClaude SSF 백엔드 빌드 — 실행 가능 fat-jar 생성
+﻿# AIDA SSF 백엔드 빌드 — 실행 가능 fat-jar 생성
 # 사용: .\server\build.ps1 [-SkipTests]
 param([switch]$SkipTests)
 $ErrorActionPreference = "Stop"
@@ -9,7 +9,7 @@ Write-Host "[build] mvn package (server/pom.xml)" -ForegroundColor Cyan
 & mvn -f (Join-Path $dir "pom.xml") clean package -DskipTests
 if ($LASTEXITCODE -ne 0) { Write-Host "[build] 실패" -ForegroundColor Red; exit 1 }
 
-$jar = Join-Path $dir "target\aidclaude-server.jar"
+$jar = Join-Path $dir "target\aida-server.jar"
 if (-not (Test-Path $jar)) { Write-Host "[build] jar 없음: $jar" -ForegroundColor Red; exit 1 }
 Write-Host "[build] OK: $jar" -ForegroundColor Green
 

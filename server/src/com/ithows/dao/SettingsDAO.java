@@ -1,9 +1,9 @@
 package com.ithows.dao;
 
 import com.ithows.ResultMap;
-import com.ithows.aidclaude.AcContext;
-import com.ithows.aidclaude.AppDb;
-import com.ithows.aidclaude.SqliteUtil;
+import com.ithows.aida.AidaContext;
+import com.ithows.aida.AppDb;
+import com.ithows.aida.SqliteUtil;
 
 import java.sql.Connection;
 import java.util.LinkedHashMap;
@@ -12,7 +12,7 @@ import java.util.Map;
 import org.json.JSONObject;
 
 /**
- * 앱 설정 DAO — 중앙 app.db {@code ac_settings(key, value)} 키/값 저장.
+ * 앱 설정 DAO — 중앙 app.db {@code aida_settings(key, value)} 키/값 저장.
  * 기존 AppSettings(claudeBin/pythonBin/workspaceRoot) 기본값과 병합해 반환한다.
  */
 public class SettingsDAO {
@@ -24,7 +24,7 @@ public class SettingsDAO {
         Map<String, String> d = new LinkedHashMap<>();
         d.put("claudeBin", "claude");
         d.put("pythonBin", "python");
-        d.put("workspaceRoot", AcContext.home().getAbsolutePath());
+        d.put("workspaceRoot", AidaContext.home().getAbsolutePath());
         return d;
     }
 
@@ -33,7 +33,7 @@ public class SettingsDAO {
         Map<String, String> out = defaults();
         try (Connection c = AppDb.conn()) {
             List<ResultMap> rows = SqliteUtil.queryForMapList(
-                    c, "SELECT key, value FROM ac_settings", null);
+                    c, "SELECT key, value FROM aida_settings", null);
             for (ResultMap r : rows) {
                 out.put(String.valueOf(r.get("key")), r.get("value") == null ? null : String.valueOf(r.get("value")));
             }
@@ -46,7 +46,7 @@ public class SettingsDAO {
     public static int put(String key, String value) {
         try (Connection c = AppDb.conn()) {
             return SqliteUtil.update(c,
-                    "INSERT INTO ac_settings(key, value) VALUES(?, ?) "
+                    "INSERT INTO aida_settings(key, value) VALUES(?, ?) "
                   + "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                     new Object[]{key, value});
         } catch (Exception e) {

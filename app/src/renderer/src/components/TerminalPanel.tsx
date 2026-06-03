@@ -31,7 +31,7 @@ export function TerminalPanel() {
   useEffect(() => {
     let alive = true;
     setInstalled(null);
-    window.aidclaude.agent
+    window.aida.agent
       .check(agentKind)
       .then((r) => { if (alive) { setInstalled(r.installed); setInstallCmd(r.installCommand); } })
       .catch(() => { if (alive) setInstalled(null); });
@@ -72,7 +72,7 @@ export function TerminalPanel() {
       fitRef.current = fit;
       sessionRef.current = sessionId;
 
-      const ws = new WebSocket(window.aidclaude.agent.wsUrl(sessionId, term.cols, term.rows));
+      const ws = new WebSocket(window.aida.agent.wsUrl(sessionId, term.cols, term.rows));
       ws.binaryType = "arraybuffer";
       wsRef.current = ws;
 
@@ -85,7 +85,7 @@ export function TerminalPanel() {
         cleanup();
         if (kind === "install") {
           setStatus("설치 세션 종료 — 설치 여부를 다시 확인하세요");
-          window.aidclaude.agent.check(agentKind).then((r) => setInstalled(r.installed)).catch(() => {});
+          window.aida.agent.check(agentKind).then((r) => setInstalled(r.installed)).catch(() => {});
         } else {
           setStatus("세션이 종료되었습니다");
         }
@@ -111,14 +111,14 @@ export function TerminalPanel() {
     setStatus("작업 준비 중...");
     try {
       const sourceIds = sources.map((s) => s.id);
-      const job = await window.aidclaude.jobs.create("terminal session", sourceIds);
+      const job = await window.aida.jobs.create("terminal session", sourceIds);
       useAppStore.getState().addJob(job);
       useAppStore.getState().setActiveJob(job.id);
 
       setMode("agent");
       setRunning(true);
       setStatus("에이전트 시작 중...");
-      const res = await window.aidclaude.agent.startLocal({
+      const res = await window.aida.agent.startLocal({
         agent: agentKind,
         workingDirectory: job.workspaceDir,
       });
@@ -136,7 +136,7 @@ export function TerminalPanel() {
     try {
       setMode("install");
       setRunning(true);
-      const res = await window.aidclaude.agent.installLocal({ agent: agentKind, command: cmd });
+      const res = await window.aida.agent.installLocal({ agent: agentKind, command: cmd });
       attachTerminal(res.sessionId, "install");
     } catch (e) {
       setStatus("설치 실패: " + (e as Error).message);
@@ -145,7 +145,7 @@ export function TerminalPanel() {
   };
 
   const stop = () => {
-    if (sessionRef.current) void window.aidclaude.agent.killLocal(sessionRef.current);
+    if (sessionRef.current) void window.aida.agent.killLocal(sessionRef.current);
     cleanup();
     setStatus("중지됨");
   };

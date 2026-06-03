@@ -4,17 +4,17 @@ import { createApiClient } from "./api-client.js";
 // SSF 서버 URL 해석: (1) main에 동기 IPC 질의(sandbox 안전) → (2) additionalArguments → (3) 기본값
 function readServerUrl(): string {
   try {
-    const url = ipcRenderer.sendSync("aidclaude:server-url");
+    const url = ipcRenderer.sendSync("aida:server-url");
     if (typeof url === "string" && url) return url;
   } catch {
     /* fall through */
   }
   const arg = process.argv.find((a) => a.startsWith("--server-url="));
-  return arg ? arg.slice("--server-url=".length) : "http://localhost:8765/AidClaude";
+  return arg ? arg.slice("--server-url=".length) : "http://localhost:8765/AIDA";
 }
 const api = createApiClient(readServerUrl());
 
-contextBridge.exposeInMainWorld("aidclaude", {
+contextBridge.exposeInMainWorld("aida", {
   // ── 데이터 (HTTP → SSF) ──
   settings: api.settings,
   catalog: api.catalog,

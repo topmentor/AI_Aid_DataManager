@@ -2,8 +2,8 @@ package com.ithows.controller;
 
 import com.ithows.HttpUtil;
 import com.ithows.ResultMap;
-import com.ithows.aidclaude.AcResp;
-import com.ithows.aidclaude.JobService;
+import com.ithows.aida.AidaResp;
+import com.ithows.aida.JobService;
 import com.ithows.base.ApiInfo;
 import com.ithows.base.ControllerClassInfo;
 import com.ithows.base.ControllerMethodInfo;
@@ -29,10 +29,10 @@ public class JobController {
     public String listJobs(HttpSession session, HttpServletRequest request,
                            HttpServletResponse response, Object command) {
         List<ResultMap> rows = JobDAO.list();
-        if (rows == null) return AcResp.error(request, "작업 목록 조회 실패");
+        if (rows == null) return AidaResp.error(request, "작업 목록 조회 실패");
         JSONArray arr = new JSONArray();
         for (ResultMap r : rows) arr.put(JobService.jobJson(r));
-        return AcResp.list(request, arr);
+        return AidaResp.list(request, arr);
     }
 
     @ControllerMethodInfo(id = "/api/createJob.do")
@@ -41,13 +41,13 @@ public class JobController {
     public String createJob(HttpSession session, HttpServletRequest request,
                             HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String userRequest = body.optString("userRequest", "");
         List<String> sourceIds = strList(body.optJSONArray("sourceIds"));
         try {
-            return AcResp.map(request, JobService.createJob(userRequest, sourceIds));
+            return AidaResp.map(request, JobService.createJob(userRequest, sourceIds));
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -56,14 +56,14 @@ public class JobController {
     public String refreshJobSources(HttpSession session, HttpServletRequest request,
                                     HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String jobId = body.optString("jobId", "").trim();
-        if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
+        if (jobId.isEmpty()) return AidaResp.error(request, "jobId가 필요합니다");
         try {
             boolean ok = JobService.refreshJobSources(jobId);
-            return ok ? AcResp.ok(request) : AcResp.no(request, "작업을 찾을 수 없습니다");
+            return ok ? AidaResp.ok(request) : AidaResp.no(request, "작업을 찾을 수 없습니다");
         } catch (Exception e) {
-            return AcResp.error(request, e.getMessage());
+            return AidaResp.error(request, e.getMessage());
         }
     }
 
@@ -73,11 +73,11 @@ public class JobController {
     public String runJobSql(HttpSession session, HttpServletRequest request,
                             HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String jobId = body.optString("jobId", "").trim();
         String sql = body.optString("sql", "");
-        if (jobId.isEmpty() || sql.trim().isEmpty()) return AcResp.error(request, "jobId/sql이 필요합니다");
-        return AcResp.map(request, com.ithows.aidclaude.SqlRunner.runSql(jobId, sql));
+        if (jobId.isEmpty() || sql.trim().isEmpty()) return AidaResp.error(request, "jobId/sql이 필요합니다");
+        return AidaResp.map(request, com.ithows.aida.SqlRunner.runSql(jobId, sql));
     }
 
     @ControllerMethodInfo(id = "/api/runJobAnalysis.do")
@@ -86,16 +86,16 @@ public class JobController {
     public String runJobAnalysis(HttpSession session, HttpServletRequest request,
                                  HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String jobId = body.optString("jobId", "").trim();
-        if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
+        if (jobId.isEmpty()) return AidaResp.error(request, "jobId가 필요합니다");
         ResultMap job = JobDAO.get(jobId);
-        if (job == null) return AcResp.error(request, "작업을 찾을 수 없습니다");
+        if (job == null) return AidaResp.error(request, "작업을 찾을 수 없습니다");
         java.io.File analyze = new java.io.File(String.valueOf(job.get("workspace_dir")), "analyze.py");
         if (analyze.exists()) {
-            return AcResp.map(request, com.ithows.aidclaude.PythonRunner.runAnalysis(jobId));
+            return AidaResp.map(request, com.ithows.aida.PythonRunner.runAnalysis(jobId));
         }
-        return AcResp.map(request, com.ithows.aidclaude.SqlRunner.runQueryFile(jobId));
+        return AidaResp.map(request, com.ithows.aida.SqlRunner.runQueryFile(jobId));
     }
 
     @ControllerMethodInfo(id = "/api/getSqlOptions.do")
@@ -103,10 +103,10 @@ public class JobController {
     public String getSqlOptions(HttpSession session, HttpServletRequest request,
                                 HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String jobId = body.optString("jobId", "").trim();
-        if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
-        return AcResp.list(request, com.ithows.aidclaude.JobService.sqlOptionsForJob(jobId));
+        if (jobId.isEmpty()) return AidaResp.error(request, "jobId가 필요합니다");
+        return AidaResp.list(request, com.ithows.aida.JobService.sqlOptionsForJob(jobId));
     }
 
     @ControllerMethodInfo(id = "/api/listQueryHistory.do")
@@ -114,25 +114,25 @@ public class JobController {
     public String listQueryHistory(HttpSession session, HttpServletRequest request,
                                    HttpServletResponse response, Object command) {
         JSONObject body = bodyOrNull(request);
-        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        if (body == null) return AidaResp.error(request, "요청 본문(JSON)이 필요합니다");
         String jobId = body.optString("jobId", "").trim();
-        if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
-        return AcResp.list(request, com.ithows.aidclaude.JobService.queryHistory(jobId));
+        if (jobId.isEmpty()) return AidaResp.error(request, "jobId가 필요합니다");
+        return AidaResp.list(request, com.ithows.aida.JobService.queryHistory(jobId));
     }
 
     @ControllerMethodInfo(id = "/api/listOrphanTables.do")
     @ApiInfo(summary = "고아 테이블 목록", description = "모든 job DB의 미사용 테이블을 조회합니다.", tag = "Jobs", method = "GET")
     public String listOrphanTables(HttpSession session, HttpServletRequest request,
                                    HttpServletResponse response, Object command) {
-        return AcResp.list(request, com.ithows.aidclaude.OrphanService.list());
+        return AidaResp.list(request, com.ithows.aida.OrphanService.list());
     }
 
     @ControllerMethodInfo(id = "/api/dropOrphanTables.do")
     @ApiInfo(summary = "고아 테이블 삭제", tag = "Jobs", method = "POST")
     public String dropOrphanTables(HttpSession session, HttpServletRequest request,
                                    HttpServletResponse response, Object command) {
-        int dropped = com.ithows.aidclaude.OrphanService.dropAll();
-        return AcResp.map(request, new JSONObject().put("dropped", dropped));
+        int dropped = com.ithows.aida.OrphanService.dropAll();
+        return AidaResp.map(request, new JSONObject().put("dropped", dropped));
     }
 
     static List<String> strList(JSONArray a) {

@@ -22,7 +22,7 @@ import org.apache.catalina.webresources.StandardRoot;
 public class EmbeddedApplication {
 
     private static final int DEFAULT_PORT = 8080;
-    private static final String DEFAULT_CONTEXT_PATH = "/AidClaude";
+    private static final String DEFAULT_CONTEXT_PATH = "/AIDA";
 
     public static void main(String[] args) throws Exception {
         int port = Integer.parseInt(System.getProperty("server.port", String.valueOf(DEFAULT_PORT)));
