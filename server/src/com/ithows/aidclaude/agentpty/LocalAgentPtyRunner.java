@@ -60,7 +60,7 @@ public final class LocalAgentPtyRunner {
         PtyProcess process;
         try {
             process = new PtyProcessBuilder()
-                    .setCommand(new String[]{opts.command()})
+                    .setCommand(agentArgv(opts.command()))
                     .setEnvironment(env)
                     .setDirectory(cwd.toString())
                     .setInitialColumns(80)
@@ -119,6 +119,19 @@ public final class LocalAgentPtyRunner {
             return new String[]{"cmd.exe", "/c", commandLine};
         }
         return new String[]{"/bin/sh", "-lc", commandLine};
+    }
+
+    /**
+     * 에이전트 명령 argv. Windows에서는 npm 전역 CLI가 {@code .cmd} 셸 스크립트라
+     * CreateProcess로 직접 실행할 수 없으므로 {@code cmd.exe /c}로 래핑(PATHEXT 해석).
+     * Unix는 PATH에서 직접 실행한다.
+     */
+    private static String[] agentArgv(String command) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) {
+            return new String[]{"cmd.exe", "/c", command};
+        }
+        return new String[]{command};
     }
 
     public boolean attach(String sessionId, Session ws, int cols, int rows) {
