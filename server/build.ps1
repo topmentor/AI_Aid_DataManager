@@ -2,6 +2,7 @@
 # 사용: .\server\build.ps1 [-SkipTests]
 param([switch]$SkipTests)
 $ErrorActionPreference = "Stop"
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $dir = $PSScriptRoot
 
 Write-Host "[build] mvn package (server/pom.xml)" -ForegroundColor Cyan

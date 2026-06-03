@@ -6,6 +6,7 @@ param(
     [switch]$Build
 )
 $ErrorActionPreference = "Stop"
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $dir = $PSScriptRoot
 $jar = Join-Path $dir "target\aidclaude-server.jar"
 $web = Join-Path $dir "web"

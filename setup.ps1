@@ -1,4 +1,4 @@
-# AidClaude — 의존성 확인 + 빌드 스크립트 (SSF 백엔드 + Electron)
+﻿# AidClaude — 의존성 확인 + 빌드 스크립트 (SSF 백엔드 + Electron)
 # 사용법:
 #   .\setup.ps1          의존성 확인 + SSF jar 빌드
 #   .\setup.ps1 -Dev     확인 후 개발 실행 (Electron이 SSF jar를 자동 기동)
@@ -10,6 +10,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# 한글 출력이 깨지지 않도록 콘솔 출력 인코딩을 UTF-8로 고정
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
 $Root      = $PSScriptRoot
 $AppDir    = Join-Path $Root "app"
 $ServerDir = Join-Path $Root "server"
@@ -30,16 +33,17 @@ try {
 } catch { Fail "node를 찾을 수 없습니다 (https://nodejs.org)" }
 
 # ── 2. Java ≥ 17 + Maven ───────────────────────────────────────────────────
+# 주의: java -version 은 stderr로 출력하므로 cmd /c 로 캡처해 EAP=Stop 오류를 회피
 Step 2 "Java / Maven (SSF 백엔드)"
-try {
-    $jv = (java -version 2>&1 | Select-Object -First 1)
+if (Get-Command java -ErrorAction SilentlyContinue) {
+    $jv = (cmd /c "java -version 2>&1" | Select-Object -First 1)
     if ($jv -match '"(\d+)') { $jmajor = [int]$Matches[1] } else { $jmajor = 0 }
     if ($jmajor -ge 17) { Ok "$jv" } else { Fail "Java 17+ 필요 (현재: $jv)" }
-} catch { Fail "java를 찾을 수 없습니다 (Java 17+ 설치 필요)" }
-try {
-    $mv = (mvn -version 2>&1 | Select-Object -First 1)
+} else { Fail "java를 찾을 수 없습니다 (Java 17+ 설치 필요)" }
+if (Get-Command mvn -ErrorAction SilentlyContinue) {
+    $mv = (cmd /c "mvn -version 2>&1" | Select-Object -First 1)
     Ok "$mv"
-} catch { Fail "maven(mvn)을 찾을 수 없습니다" }
+} else { Fail "maven(mvn)을 찾을 수 없습니다" }
 
 # ── 3. Python ≥ 3.8 + 필수 패키지 (분석 기능) ──────────────────────────────
 Step 3 "Python"
