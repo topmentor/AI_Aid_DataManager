@@ -79,6 +79,31 @@ public final class JobService {
         writeFile(new File(jobDir, "data_helpers.py"), SystemPromptBuilder.buildDataHelpers(tableNames));
     }
 
+    /** SQL 실행 후: 현재 data.db 테이블 목록/행수로 CLAUDE.md·data_helpers.py 재작성(소스 재적재 없음). */
+    public static void updateClaudeMdFromDb(String jobId) {
+        ResultMap job = JobDAO.get(jobId);
+        if (job == null) return;
+        File jobDir = new File(String.valueOf(job.get("workspace_dir")));
+        File dbFile = new File(jobDir, "data.db");
+        if (!dbFile.exists()) return;
+        List<SystemPromptBuilder.TableInfo> infos = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        try (Connection db = SqliteUtil.open(dbFile.getAbsolutePath())) {
+            for (String t : SqliteUtil.listTables(db)) {
+                if (t.matches("result_bak_\\d+")) continue;
+                long cnt = 0;
+                ResultMap c = SqliteUtil.queryForMap(db, "SELECT COUNT(*) AS n FROM " + SqliteUtil.quoteIdent(t), null);
+                if (c != null) cnt = c.getLong("n", 0);
+                infos.add(new SystemPromptBuilder.TableInfo(t, cnt, ""));
+                names.add(t);
+            }
+            writeFile(new File(jobDir, "CLAUDE.md"), SystemPromptBuilder.buildClaudeMd(infos));
+            writeFile(new File(jobDir, "data_helpers.py"), SystemPromptBuilder.buildDataHelpers(names));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static JSONObject jobJson(ResultMap r) {
         JSONObject o = new JSONObject();
         if (r == null) return o;

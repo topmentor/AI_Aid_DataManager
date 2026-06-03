@@ -67,6 +67,31 @@ public class JobController {
         }
     }
 
+    @ControllerMethodInfo(id = "/api/runJobSql.do")
+    @ApiInfo(summary = "작업 SQL 실행", description = "임의 SQL을 job의 data.db에 실행합니다(result 백업 후).",
+             tag = "Jobs", method = "POST")
+    public String runJobSql(HttpSession session, HttpServletRequest request,
+                            HttpServletResponse response, Object command) {
+        JSONObject body = bodyOrNull(request);
+        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        String jobId = body.optString("jobId", "").trim();
+        String sql = body.optString("sql", "");
+        if (jobId.isEmpty() || sql.trim().isEmpty()) return AcResp.error(request, "jobId/sql이 필요합니다");
+        return AcResp.map(request, com.ithows.aidclaude.SqlRunner.runSql(jobId, sql));
+    }
+
+    @ControllerMethodInfo(id = "/api/runJobAnalysis.do")
+    @ApiInfo(summary = "작업 분석 실행", description = "워크스페이스의 query.sql을 실행합니다.",
+             tag = "Jobs", method = "POST")
+    public String runJobAnalysis(HttpSession session, HttpServletRequest request,
+                                 HttpServletResponse response, Object command) {
+        JSONObject body = bodyOrNull(request);
+        if (body == null) return AcResp.error(request, "요청 본문(JSON)이 필요합니다");
+        String jobId = body.optString("jobId", "").trim();
+        if (jobId.isEmpty()) return AcResp.error(request, "jobId가 필요합니다");
+        return AcResp.map(request, com.ithows.aidclaude.SqlRunner.runQueryFile(jobId));
+    }
+
     static List<String> strList(JSONArray a) {
         List<String> out = new ArrayList<>();
         if (a != null) for (int i = 0; i < a.length(); i++) out.add(a.optString(i, ""));
